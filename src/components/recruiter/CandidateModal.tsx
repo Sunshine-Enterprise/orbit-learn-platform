@@ -61,7 +61,7 @@ export const CandidateModal: React.FC<Props> = ({ isOpen, onClose, candidateToEd
         setEmail(candidateToEdit.email);
         const resolvedGender = resolveCandidateGender(candidateToEdit);
         setGender(resolvedGender);
-        setTemporaryPassword(candidateToEdit.temporaryPassword || 'SEU-temp-101');
+        setTemporaryPassword(candidateToEdit.temporaryPassword || candidateToEdit.customPassword || 'SEU-temp-101');
 
         const candArea = candidateToEdit.area || (areas.length > 0 ? areas[0].name : '');
         setSelectedArea(candArea);
@@ -153,6 +153,7 @@ export const CandidateModal: React.FC<Props> = ({ isOpen, onClose, candidateToEd
         typingTemplateId: typingEnabled ? typingTemplateId : undefined,
         excelEnabled,
         excelAssessmentIds: excelEnabled ? excelAssessmentIds : [],
+        temporaryPassword: temporaryPassword.trim() || undefined,
       });
     } else {
       await createCandidate({

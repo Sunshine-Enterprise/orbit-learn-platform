@@ -17,6 +17,8 @@ import {
   Edit3,
   KeyRound,
   RotateCcw,
+  Copy,
+  Check,
 } from 'lucide-react';
 
 interface Props {
@@ -34,10 +36,20 @@ export const CandidateProfileModal: React.FC<Props> = ({
   onAssignTest,
   onEdit,
 }) => {
-  const { assignments, language, t, resetCandidatePassword } = useApp();
-  const [currentTempPass, setCurrentTempPass] = React.useState<string>(candidate?.temporaryPassword || 'SEU-temp-101');
+  const { assignments, language, t, resetCandidatePassword, updateCandidatePassword } = useApp();
+  const activePassword = candidate?.customPassword || candidate?.temporaryPassword || 'SEU-temp-101';
+  const [currentTempPass, setCurrentTempPass] = React.useState<string>(activePassword);
   const [isResetting, setIsResetting] = React.useState(false);
   const [showPass, setShowPass] = React.useState(false);
+  const [isEditingPass, setIsEditingPass] = React.useState(false);
+  const [editPassInput, setEditPassInput] = React.useState(activePassword);
+  const [isSavingPass, setIsSavingPass] = React.useState(false);
+
+  React.useEffect(() => {
+    const pass = candidate?.customPassword || candidate?.temporaryPassword || 'SEU-temp-101';
+    setCurrentTempPass(pass);
+    setEditPassInput(pass);
+  }, [candidate]);
 
   if (!candidate) return null;
 
@@ -171,51 +183,121 @@ export const CandidateProfileModal: React.FC<Props> = ({
 
         {/* Candidate Access Credentials Card */}
         <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs mb-3">
-          <div className="space-y-1">
-            <span className="font-bold text-slate-700 flex items-center gap-1.5 text-[11px] uppercase tracking-wider">
-              <KeyRound className="w-3.5 h-3.5 text-[#2368f5]" />
-              {isEs ? 'Credenciales de Acceso del Candidato' : 'Candidate Portal Access Credentials'}
-            </span>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-slate-500 font-medium">{isEs ? 'Contraseña actual:' : 'Current password:'}</span>
-              <span className="font-mono font-bold text-blue-700 bg-white px-2 py-0.5 rounded border border-blue-200 inline-flex items-center gap-1.5">
-                <span>{showPass ? currentTempPass : '••••••••'}</span>
-                <button
-                  type="button"
-                  onClick={() => setShowPass(prev => !prev)}
-                  className="text-slate-400 hover:text-slate-600 cursor-pointer p-0.5"
-                  title={showPass ? (isEs ? 'Ocultar' : 'Hide') : (isEs ? 'Mostrar' : 'Show')}
-                >
-                  {showPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                </button>
+          <div className="space-y-1.5 flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-bold text-slate-700 flex items-center gap-1.5 text-[11px] uppercase tracking-wider">
+                <KeyRound className="w-3.5 h-3.5 text-[#2368f5]" />
+                {isEs ? 'Credenciales de Acceso del Candidato' : 'Candidate Portal Access Credentials'}
               </span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 font-semibold">
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 font-semibold shrink-0">
                 {candidate.isPasswordChanged
-                  ? (isEs ? 'Personalizada por candidato' : 'Custom password')
-                  : (isEs ? 'Temporal activa' : 'Active temporary')}
+                  ? (isEs ? 'Personalizada' : 'Custom')
+                  : (isEs ? 'Temporal Activa' : 'Active Temp')}
               </span>
             </div>
+
+            {isEditingPass ? (
+              <div className="flex items-center gap-2 mt-1">
+                <input
+                  type="text"
+                  value={editPassInput}
+                  onChange={e => setEditPassInput(e.target.value)}
+                  placeholder="ej. Test12"
+                  className="font-mono text-xs px-2.5 py-1.5 rounded-lg border border-[#2368f5] bg-white focus:outline-none focus:ring-1 focus:ring-[#2368f5] w-48"
+                />
+                <button
+                  type="button"
+                  disabled={isSavingPass || !editPassInput.trim()}
+                  onClick={async () => {
+                    setIsSavingPass(true);
+                    try {
+                      await updateCandidatePassword(candidate.email, editPassInput.trim(), false);
+                      setCurrentTempPass(editPassInput.trim());
+                      setIsEditingPass(false);
+                    } finally {
+                      setIsSavingPass(false);
+                    }
+                  }}
+                  className="px-2.5 py-1.5 rounded-lg bg-[#2368f5] text-white font-bold hover:bg-[#1546b8] transition-colors cursor-pointer text-xs flex items-center gap-1"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  <span>{isEs ? 'Guardar' : 'Save'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditPassInput(currentTempPass);
+                    setIsEditingPass(false);
+                  }}
+                  className="px-2.5 py-1.5 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold transition-colors cursor-pointer text-xs"
+                >
+                  {isEs ? 'Cancelar' : 'Cancel'}
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-slate-500 font-medium">{isEs ? 'Contraseña actual:' : 'Current password:'}</span>
+                <span className="font-mono font-bold text-blue-700 bg-white px-2 py-0.5 rounded border border-blue-200 inline-flex items-center gap-1.5">
+                  <span>{showPass ? currentTempPass : '••••••••'}</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowPass(prev => !prev)}
+                    className="text-slate-400 hover:text-slate-600 cursor-pointer p-0.5"
+                    title={showPass ? (isEs ? 'Ocultar' : 'Hide') : (isEs ? 'Mostrar' : 'Show')}
+                  >
+                    {showPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(currentTempPass);
+                      alert(isEs ? 'Contraseña copiada al portapapeles' : 'Password copied to clipboard');
+                    }}
+                    className="text-slate-400 hover:text-slate-600 cursor-pointer p-0.5"
+                    title={isEs ? 'Copiar contraseña' : 'Copy password'}
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                  </button>
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditPassInput(currentTempPass);
+                    setIsEditingPass(true);
+                  }}
+                  className="text-xs text-[#2368f5] hover:underline font-semibold inline-flex items-center gap-1 cursor-pointer ml-1"
+                  title={isEs ? 'Cambiar contraseña de acceso' : 'Edit candidate password'}
+                >
+                  <Edit3 className="w-3 h-3" />
+                  <span>{isEs ? 'Editar Clave' : 'Edit Pass'}</span>
+                </button>
+              </div>
+            )}
           </div>
 
-          <button
-            type="button"
-            disabled={isResetting}
-            onClick={async () => {
-              setIsResetting(true);
-              try {
-                const newTemp = await resetCandidatePassword(candidate.id);
-                setCurrentTempPass(newTemp);
-                alert(isEs ? `Nueva contraseña temporal generada: ${newTemp}` : `New temporary password generated: ${newTemp}`);
-              } finally {
-                setIsResetting(false);
-              }
-            }}
-            className="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 font-bold border border-slate-300 rounded-xl transition-colors cursor-pointer text-xs flex items-center gap-1.5 shrink-0"
-            title={isEs ? 'Generar nueva contraseña temporal' : 'Generate new temporary password'}
-          >
-            <RotateCcw className={`w-3.5 h-3.5 text-[#2368f5] ${isResetting ? 'animate-spin' : ''}`} />
-            <span>{isEs ? 'Restablecer Clave Temporal' : 'Reset Temp Password'}</span>
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              disabled={isResetting}
+              onClick={async () => {
+                setIsResetting(true);
+                try {
+                  const newTemp = await resetCandidatePassword(candidate.id);
+                  setCurrentTempPass(newTemp);
+                  setEditPassInput(newTemp);
+                  alert(isEs ? `Nueva contraseña temporal generada: ${newTemp}` : `New temporary password generated: ${newTemp}`);
+                } finally {
+                  setIsResetting(false);
+                }
+              }}
+              className="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 font-bold border border-slate-300 rounded-xl transition-colors cursor-pointer text-xs flex items-center gap-1.5 shrink-0"
+              title={isEs ? 'Generar nueva contraseña temporal' : 'Generate new temporary password'}
+            >
+              <RotateCcw className={`w-3.5 h-3.5 text-[#2368f5] ${isResetting ? 'animate-spin' : ''}`} />
+              <span>{isEs ? 'Restablecer Clave Temporal' : 'Reset Temp Password'}</span>
+            </button>
+          </div>
         </div>
 
         {/* Assessment History */}

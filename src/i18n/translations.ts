@@ -140,7 +140,7 @@ export const translations = {
       tabs: {
         pipeline: 'Candidate Verification Pipeline',
         quizzes: 'Question Bank & Assessments',
-        candidates: 'Talent Pool Directory',
+        candidates: 'Candidate Management',
         typing: 'Typing Speed Assessments',
         excel: 'Excel Practical Assessments',
       },
@@ -215,8 +215,8 @@ export const translations = {
         nextPage: 'Next',
       },
       candidates: {
-        title: 'Talent Pool',
-        subtitle: 'Candidates in the screening and skills verification pipeline',
+        title: 'Candidate Management & Directory',
+        subtitle: 'Manage candidate profiles, access credentials, assessment assignments, and verification progress',
         newCandidateBtn: 'Add Candidate',
         assignQuizBtn: 'Assign Assessment',
         noCandidates: 'No candidates registered.',
@@ -640,7 +640,7 @@ export const translations = {
       tabs: {
         pipeline: 'Pipeline de Verificación y Scores',
         quizzes: 'Banco de Preguntas y Pruebas',
-        candidates: 'Directorio de Talento',
+        candidates: 'Gestión de Candidatos',
         typing: 'Evaluaciones de Mecanografía',
         excel: 'Evaluaciones Prácticas de Excel',
       },
@@ -715,8 +715,8 @@ export const translations = {
         nextPage: 'Sig.',
       },
       candidates: {
-        title: 'Directorio de Postulantes',
-        subtitle: 'Candidatos en proceso de filtrado y verificación de habilidades',
+        title: 'Gestión y Directorio de Candidatos',
+        subtitle: 'Administración de postulantes, credenciales de acceso, asignación de evaluaciones y seguimiento',
         newCandidateBtn: 'Nuevo Candidato',
         assignQuizBtn: 'Asignar Prueba',
         noCandidates: 'No hay candidatos registrados.',

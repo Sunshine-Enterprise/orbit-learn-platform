@@ -41,6 +41,11 @@ import {
   X,
   Mail,
   Loader2,
+  Table,
+  LayoutGrid,
+  KeyRound,
+  EyeOff,
+  Link2,
 } from 'lucide-react';
 
 import { sendAssessmentInviteEmail } from '../../services/emailService';
@@ -106,6 +111,14 @@ export const RecruiterDashboard: React.FC = () => {
   // Filter & Pagination state for candidates directory (5, 10 default, 15, 20, 50)
   const [candSearchQuery, setCandSearchQuery] = useState('');
   const [candAreaFilter, setCandAreaFilter] = useState('all');
+  const [candStatusFilter, setCandStatusFilter] = useState<'all' | 'pending' | 'completed' | 'none'>('all');
+  const [candViewMode, setCandViewMode] = useState<'table' | 'grid'>('table');
+  const [candVisiblePasswords, setCandVisiblePasswords] = useState<Record<string, boolean>>({});
+  const [selectedCandidateForAssignment, setSelectedCandidateForAssignment] = useState<string | undefined>(undefined);
+
+  const toggleCandPassVisibility = (candId: string) => {
+    setCandVisiblePasswords(prev => ({ ...prev, [candId]: !prev[candId] }));
+  };
   const [candPageSize, setCandPageSize] = useState<number>(10);
   const [candCurrentPage, setCandCurrentPage] = useState<number>(1);
 
@@ -249,6 +262,14 @@ export const RecruiterDashboard: React.FC = () => {
 
   // Filtered Candidates Directory
   const filteredCandidates = candidates.filter(c => {
+    if (candStatusFilter !== 'all') {
+      const candAssigns = assignments.filter(a => a.candidateId === c.id);
+      const hasCompleted = candAssigns.some(a => a.status === 'completed');
+      const hasPending = candAssigns.some(a => a.status === 'pending');
+      if (candStatusFilter === 'completed' && !hasCompleted) return false;
+      if (candStatusFilter === 'pending' && !hasPending) return false;
+      if (candStatusFilter === 'none' && candAssigns.length > 0) return false;
+    }
     if (candAreaFilter !== 'all' && c.area !== candAreaFilter) {
       return false;
     }
@@ -1255,7 +1276,7 @@ export const RecruiterDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Tab 3: Candidates Directory */}
+      {/* Tab 3: Candidates Management & Directory */}
       {activeTab === 'candidates' && (
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -1263,19 +1284,52 @@ export const RecruiterDashboard: React.FC = () => {
               <h2 className="text-base font-bold text-slate-900">{t.recruiter.candidates.title}</h2>
               <p className="text-xs text-slate-500">{t.recruiter.candidates.subtitle}</p>
             </div>
-            <button
-              onClick={() => {
-                setCandidateToEdit(null);
-                setIsCandidateModalOpen(true);
-              }}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#2368f5] text-white text-xs font-bold hover:bg-[#144cc0] transition-colors cursor-pointer shadow-xs self-start sm:self-auto"
-            >
-              <PlusCircle className="w-3.5 h-3.5" />
-              <span>{t.recruiter.candidates.newCandidateBtn}</span>
-            </button>
+            
+            <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+              {/* View Mode Switcher */}
+              <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setCandViewMode('table')}
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                    candViewMode === 'table'
+                      ? 'bg-white text-[#2368f5] shadow-xs'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                  title={language === 'es' ? 'Vista de Tabla Detallada' : 'Detailed Table View'}
+                >
+                  <Table className="w-3.5 h-3.5" />
+                  <span>{language === 'es' ? 'Tabla' : 'Table'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCandViewMode('grid')}
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                    candViewMode === 'grid'
+                      ? 'bg-white text-[#2368f5] shadow-xs'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                  title={language === 'es' ? 'Vista de Tarjetas' : 'Cards View'}
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                  <span>{language === 'es' ? 'Tarjetas' : 'Cards'}</span>
+                </button>
+              </div>
+
+              <button
+                onClick={() => {
+                  setCandidateToEdit(null);
+                  setIsCandidateModalOpen(true);
+                }}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#2368f5] text-white text-xs font-bold hover:bg-[#144cc0] transition-colors cursor-pointer shadow-xs"
+              >
+                <PlusCircle className="w-3.5 h-3.5" />
+                <span>{t.recruiter.candidates.newCandidateBtn}</span>
+              </button>
+            </div>
           </div>
 
-          {/* Search & Area Filter Toolbar */}
+          {/* Search, Area & Status Filter Toolbar */}
           <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row gap-2.5 items-stretch md:items-center justify-between">
             <div className="flex-1 flex flex-col sm:flex-row gap-2">
               <div className="relative flex-1">
@@ -1284,7 +1338,7 @@ export const RecruiterDashboard: React.FC = () => {
                   type="text"
                   placeholder={
                     language === 'es'
-                      ? 'Buscar candidato por nombre, rol o email...'
+                      ? 'Buscar candidato por nombre, cargo o correo...'
                       : 'Search candidate by name, role or email...'
                   }
                   value={candSearchQuery}
@@ -1317,12 +1371,40 @@ export const RecruiterDashboard: React.FC = () => {
                 />
               )}
 
-              {(candSearchQuery !== '' || candAreaFilter !== 'all') && (
+              <CustomSelect
+                value={candStatusFilter}
+                onChange={val => {
+                  setCandStatusFilter(val as any);
+                  setCandCurrentPage(1);
+                }}
+                triggerClassName="py-1.5 px-3 rounded-xl bg-slate-50 border-slate-200"
+                options={[
+                  {
+                    value: 'all',
+                    label: language === 'es' ? 'Todos los Estados' : 'All Test Statuses',
+                  },
+                  {
+                    value: 'pending',
+                    label: language === 'es' ? 'Con Pruebas Pendientes' : 'Pending Tests',
+                  },
+                  {
+                    value: 'completed',
+                    label: language === 'es' ? 'Con Pruebas Completadas' : 'Completed Tests',
+                  },
+                  {
+                    value: 'none',
+                    label: language === 'es' ? 'Sin Pruebas Asignadas' : 'No Tests Assigned',
+                  },
+                ]}
+              />
+
+              {(candSearchQuery !== '' || candAreaFilter !== 'all' || candStatusFilter !== 'all') && (
                 <button
                   type="button"
                   onClick={() => {
                     setCandSearchQuery('');
                     setCandAreaFilter('all');
+                    setCandStatusFilter('all');
                     setCandCurrentPage(1);
                   }}
                   className="px-2.5 py-1.5 rounded-xl border border-slate-200 text-xs text-slate-500 hover:text-slate-800 hover:bg-slate-100 flex items-center justify-center gap-1 cursor-pointer transition-colors"
@@ -1350,7 +1432,226 @@ export const RecruiterDashboard: React.FC = () => {
                   : 'Try adjusting your search or area filters.'}
               </p>
             </div>
+          ) : candViewMode === 'table' ? (
+            /* Table View: Enterprise Candidate Management Matrix */
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[760px]">
+                  <thead>
+                    <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                      <th className="py-3.5 px-4">{language === 'es' ? 'Candidato' : 'Candidate'}</th>
+                      <th className="py-3.5 px-4">{language === 'es' ? 'Cargo / Área Postulada' : 'Role & Area'}</th>
+                      <th className="py-3.5 px-4">{language === 'es' ? 'Credenciales de Acceso' : 'Access Password'}</th>
+                      <th className="py-3.5 px-4">{language === 'es' ? 'Evaluaciones Técnicas' : 'Assessments'}</th>
+                      <th className="py-3.5 px-4">{language === 'es' ? 'Registro' : 'Registered'}</th>
+                      <th className="py-3.5 px-4 text-right">{language === 'es' ? 'Acciones' : 'Actions'}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
+                    {paginatedCandidates.map(cand => {
+                      const candAssignments = assignments.filter(a => a.candidateId === cand.id);
+                      const completed = candAssignments.filter(a => a.status === 'completed');
+                      const candGender = resolveCandidateGender(cand);
+                      const isFemaleCand = candGender === 'female';
+                      const candInitials = getCandidateInitials(cand.name);
+                      const activePass = cand.customPassword || cand.temporaryPassword || 'SEU-temp-101';
+                      const isPassVisible = Boolean(candVisiblePasswords[cand.id]);
+                      const directLink = `${window.location.origin}?code=${encodeURIComponent(cand.id)}&email=${encodeURIComponent(cand.email)}`;
+
+                      return (
+                        <tr key={cand.id} className="hover:bg-slate-50/80 transition-colors group">
+                          {/* Candidate Identity */}
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="relative shrink-0">
+                                <div
+                                  className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-xs border shadow-2xs ${
+                                    isFemaleCand
+                                      ? 'bg-purple-50 text-purple-700 border-purple-200'
+                                      : 'bg-blue-50 text-blue-700 border-blue-200'
+                                  }`}
+                                >
+                                  <span>{candInitials}</span>
+                                </div>
+                                <div
+                                  className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full flex items-center justify-center border shadow-2xs ${
+                                    isFemaleCand
+                                      ? 'bg-purple-100 text-purple-700 border-purple-300'
+                                      : 'bg-blue-100 text-blue-700 border-blue-300'
+                                  }`}
+                                  title={isFemaleCand ? (language === 'es' ? 'Femenino' : 'Female') : (language === 'es' ? 'Masculino' : 'Male')}
+                                >
+                                  {isFemaleCand ? <Venus className="w-2 h-2" /> : <Mars className="w-2 h-2" />}
+                                </div>
+                              </div>
+                              <div className="min-w-0">
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedProfileCandidate(cand)}
+                                  className="font-bold text-slate-900 hover:text-[#2368f5] hover:underline flex items-center gap-1 cursor-pointer transition-colors text-left truncate"
+                                  title={t.recruiter.pipeline.viewCandidateProfile}
+                                >
+                                  <span className="truncate font-bold">{cand.name}</span>
+                                  <ArrowUpRight className="w-3 h-3 text-slate-400 shrink-0" />
+                                </button>
+                                <p className="text-[11px] text-slate-400 font-mono truncate">{cand.email}</p>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Role & Area */}
+                          <td className="py-3 px-4">
+                            <div className="space-y-0.5 max-w-[220px]">
+                              <span className="font-semibold text-slate-900 block truncate" title={cand.roleApplied}>
+                                {cand.roleApplied}
+                              </span>
+                              {cand.area && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-blue-50 text-[#2368f5] border border-blue-100 truncate max-w-full">
+                                  <Briefcase className="w-2.5 h-2.5 shrink-0" />
+                                  <span className="truncate">{getLocalizedArea(cand.area, language)}</span>
+                                </span>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Access Credentials */}
+                          <td className="py-3 px-4">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-mono text-xs font-bold text-blue-700 bg-white px-2 py-0.5 rounded border border-blue-200 inline-flex items-center gap-1">
+                                  <span>{isPassVisible ? activePass : '••••••••'}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleCandPassVisibility(cand.id)}
+                                    className="text-slate-400 hover:text-slate-600 cursor-pointer p-0.5"
+                                    title={isPassVisible ? (language === 'es' ? 'Ocultar' : 'Hide') : (language === 'es' ? 'Mostrar' : 'Show')}
+                                  >
+                                    {isPassVisible ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(activePass);
+                                      alert(language === 'es' ? `Contraseña copiada: ${activePass}` : `Password copied: ${activePass}`);
+                                    }}
+                                    className="text-slate-400 hover:text-slate-600 cursor-pointer p-0.5"
+                                    title={language === 'es' ? 'Copiar contraseña' : 'Copy password'}
+                                  >
+                                    <Copy className="w-3 h-3" />
+                                  </button>
+                                </span>
+                              </div>
+                              <span className="text-[10px] px-2 py-0.5 rounded-full font-medium inline-block bg-slate-100 text-slate-600 border border-slate-200">
+                                {cand.isPasswordChanged
+                                  ? (language === 'es' ? 'Personalizada' : 'Custom')
+                                  : (language === 'es' ? 'Temporal Activa' : 'Active Temporary')}
+                              </span>
+                            </div>
+                          </td>
+
+                          {/* Assessments Overview */}
+                          <td className="py-3 px-4">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-xs font-black text-slate-800">
+                                  {candAssignments.length}
+                                </span>
+                                <span className="text-[11px] text-slate-500">
+                                  {language === 'es' ? 'asignadas' : 'assigned'} ({completed.length} {language === 'es' ? 'completadas' : 'done'})
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1 flex-wrap">
+                                {candAssignments.length > 0 && (
+                                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                    Quiz ({candAssignments.length})
+                                  </span>
+                                )}
+                                {cand.typingEnabled && (
+                                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
+                                    Typing
+                                  </span>
+                                )}
+                                {cand.excelEnabled && (
+                                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                    Excel
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Registered Date */}
+                          <td className="py-3 px-4 text-slate-500 text-[11px] font-mono">
+                            {cand.registeredAt || '--'}
+                          </td>
+
+                          {/* Row Actions */}
+                          <td className="py-3 px-4 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => setSelectedProfileCandidate(cand)}
+                                className="p-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors cursor-pointer"
+                                title={language === 'es' ? 'Ver Ficha Completa' : 'View Full Profile'}
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedCandidateForAssignment(cand.id);
+                                  setIsAssignModalOpen(true);
+                                }}
+                                className="p-1.5 rounded-lg bg-blue-50 text-[#2368f5] hover:bg-blue-100 border border-blue-200/50 transition-colors cursor-pointer"
+                                title={t.recruiter.candidates.assignQuizBtn}
+                              >
+                                <SendHorizontal className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(directLink);
+                                  alert(
+                                    t.recruiter.pipeline.linkCopiedAlert
+                                      .replace('{name}', cand.name)
+                                      .replace('{email}', cand.email) + `\n\n${directLink}`
+                                  );
+                                }}
+                                className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200/50 transition-colors cursor-pointer"
+                                title={language === 'es' ? 'Copiar Enlace de Acceso' : 'Copy Direct Access Link'}
+                              >
+                                <Link2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCandidateToEdit(cand);
+                                  setIsCandidateModalOpen(true);
+                                }}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-[#2368f5] hover:bg-blue-50 transition-colors cursor-pointer"
+                                title={language === 'es' ? 'Editar perfil y clave' : 'Edit profile & pass'}
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => deleteCandidate(cand.id)}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
+                                title={language === 'es' ? 'Eliminar candidato' : 'Delete candidate'}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           ) : (
+            /* Grid View: Cards Layout with Access Credentials */
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {paginatedCandidates.map(cand => {
                 const candAssignments = assignments.filter(a => a.candidateId === cand.id);
@@ -1358,6 +1659,9 @@ export const RecruiterDashboard: React.FC = () => {
                 const candGender = resolveCandidateGender(cand);
                 const isFemaleCand = candGender === 'female';
                 const candInitials = getCandidateInitials(cand.name);
+                const activePass = cand.customPassword || cand.temporaryPassword || 'SEU-temp-101';
+                const isPassVisible = Boolean(candVisiblePasswords[cand.id]);
+                const directLink = `${window.location.origin}?code=${encodeURIComponent(cand.id)}&email=${encodeURIComponent(cand.email)}`;
 
                 return (
                   <div
@@ -1368,7 +1672,6 @@ export const RecruiterDashboard: React.FC = () => {
                       {/* Card Header: Avatar with single initial & single gender emblem + Profile info + Delete action */}
                       <div className="flex items-start justify-between gap-2.5">
                         <div className="flex items-center gap-3 min-w-0 flex-1">
-                          {/* Single initial Avatar with subtle corner Mars / Venus indicator */}
                           <div className="relative shrink-0">
                             <div
                               className={`w-11 h-11 rounded-2xl flex items-center justify-center font-black text-base shadow-2xs border transition-transform group-hover:scale-105 ${
@@ -1451,6 +1754,38 @@ export const RecruiterDashboard: React.FC = () => {
                         </p>
                       </div>
 
+                      {/* Active Password Box in Card */}
+                      <div className="mt-3 p-2 rounded-xl bg-blue-50/60 border border-blue-100 flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <KeyRound className="w-3.5 h-3.5 text-[#2368f5] shrink-0" />
+                          <span className="font-mono font-bold text-blue-900 truncate">
+                            {isPassVisible ? activePass : '••••••••'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => toggleCandPassVisibility(cand.id)}
+                            className="text-slate-400 hover:text-slate-600 cursor-pointer p-0.5"
+                            title={isPassVisible ? (language === 'es' ? 'Ocultar' : 'Hide') : (language === 'es' ? 'Mostrar' : 'Show')}
+                          >
+                            {isPassVisible ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(activePass);
+                              alert(language === 'es' ? `Contraseña copiada: ${activePass}` : `Password copied: ${activePass}`);
+                            }}
+                            className="text-slate-400 hover:text-slate-600 cursor-pointer p-0.5"
+                            title={language === 'es' ? 'Copiar contraseña' : 'Copy password'}
+                          >
+                            <Copy className="w-3 h-3" />
+                          </button>
+                        </div>
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-white font-semibold text-slate-500 border border-slate-200 shrink-0">
+                          {cand.isPasswordChanged ? (language === 'es' ? 'Personal' : 'Custom') : (language === 'es' ? 'Temporal' : 'Temp')}
+                        </span>
+                      </div>
+
                       {/* Micro-stats: Tests Assigned vs Tests Completed */}
                       <div className="mt-3.5 grid grid-cols-2 gap-2 text-center">
                         <div className="p-2 rounded-xl bg-slate-50 border border-slate-100">
@@ -1473,23 +1808,39 @@ export const RecruiterDashboard: React.FC = () => {
                     </div>
 
                     {/* Bottom Action Buttons */}
-                    <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2">
+                    <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-1.5">
                       <button
                         onClick={() => setSelectedProfileCandidate(cand)}
-                        className="flex-1 py-2 px-2.5 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold hover:bg-slate-200 transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                        className="flex-1 py-2 px-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold hover:bg-slate-200 transition-colors cursor-pointer flex items-center justify-center gap-1"
                       >
                         <Eye className="w-3.5 h-3.5 shrink-0" />
-                        <span className="truncate">{language === 'es' ? 'Ver Ficha' : 'Profile'}</span>
+                        <span className="truncate">{language === 'es' ? 'Ficha' : 'Profile'}</span>
                       </button>
 
                       <button
                         onClick={() => {
+                          setSelectedCandidateForAssignment(cand.id);
                           setIsAssignModalOpen(true);
                         }}
-                        className="flex-1 py-2 px-2.5 bg-blue-50 text-[#2368f5] rounded-xl text-xs font-bold hover:bg-blue-100 transition-colors cursor-pointer flex items-center justify-center gap-1.5 border border-blue-200/50"
+                        className="flex-1 py-2 px-2 bg-blue-50 text-[#2368f5] rounded-xl text-xs font-bold hover:bg-blue-100 transition-colors cursor-pointer flex items-center justify-center gap-1 border border-blue-200/50"
                       >
                         <SendHorizontal className="w-3.5 h-3.5 shrink-0" />
-                        <span className="truncate">{t.recruiter.candidates.assignQuizBtn}</span>
+                        <span className="truncate">{language === 'es' ? 'Asignar' : 'Assign'}</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(directLink);
+                          alert(
+                            t.recruiter.pipeline.linkCopiedAlert
+                              .replace('{name}', cand.name)
+                              .replace('{email}', cand.email) + `\n\n${directLink}`
+                          );
+                        }}
+                        className="py-2 px-2.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200/50 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center justify-center gap-1"
+                        title={language === 'es' ? 'Copiar Enlace de Acceso' : 'Copy Direct Access Link'}
+                      >
+                        <Link2 className="w-3.5 h-3.5 shrink-0" />
                       </button>
                     </div>
                   </div>
@@ -2323,9 +2674,11 @@ export const RecruiterDashboard: React.FC = () => {
       <AssignQuizModal
         isOpen={isAssignModalOpen}
         defaultQuizId={assigningQuizId}
+        defaultCandidateId={selectedCandidateForAssignment}
         onClose={() => {
           setIsAssignModalOpen(false);
           setAssigningQuizId(undefined);
+          setSelectedCandidateForAssignment(undefined);
         }}
       />
 

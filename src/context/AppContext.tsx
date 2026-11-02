@@ -57,8 +57,8 @@ interface AppContextType {
   createArea: (name: string, description?: string) => Promise<QuizArea>;
   createQuiz: (quiz: Omit<Quiz, 'id' | 'createdAt'>) => Promise<void>;
   updateQuiz: (quizId: string, updatedData: Partial<Quiz>) => Promise<void>;
-  createCandidate: (candidate: Omit<Candidate, 'id' | 'registeredAt' | 'avatar'> & { gender?: 'male' | 'female'; area?: string; secondaryAreas?: string[]; typingEnabled?: boolean; typingTemplateId?: string; excelEnabled?: boolean; excelAssessmentIds?: string[] }) => Promise<void>;
-  updateCandidate: (candidateId: string, updatedData: { name: string; email: string; roleApplied: string; gender: 'male' | 'female'; area?: string; secondaryAreas?: string[]; typingEnabled?: boolean; typingTemplateId?: string; excelEnabled?: boolean; excelAssessmentIds?: string[] }) => Promise<void>;
+  createCandidate: (candidate: Omit<Candidate, 'id' | 'registeredAt' | 'avatar'> & { gender?: 'male' | 'female'; area?: string; secondaryAreas?: string[]; typingEnabled?: boolean; typingTemplateId?: string; excelEnabled?: boolean; excelAssessmentIds?: string[]; temporaryPassword?: string; customPassword?: string; isPasswordChanged?: boolean }) => Promise<void>;
+  updateCandidate: (candidateId: string, updatedData: { name: string; email: string; roleApplied: string; gender: 'male' | 'female'; area?: string; secondaryAreas?: string[]; typingEnabled?: boolean; typingTemplateId?: string; excelEnabled?: boolean; excelAssessmentIds?: string[]; temporaryPassword?: string; customPassword?: string; isPasswordChanged?: boolean }) => Promise<void>;
   assignQuiz: (candidateId: string, quizId: string, selectedQuestionIds?: string[]) => void;
   assignCustomQuiz: (candidateIds: string[], quizId: string, selectedQuestionIds: string[], durationMinutes?: number) => Promise<void>;
   assignCustomSuite: (candidateIds: string[], suite: { quizId: string; selectedQuestionIds: string[]; durationMinutes?: number }[]) => Promise<void>;
@@ -73,7 +73,7 @@ interface AppContextType {
   assignExcelAssessment: (candidateIds: string[], assessmentId: string) => Promise<void>;
   submitExcelAssessment: (submission: Omit<ExcelSubmission, 'id' | 'submittedAt' | 'reviewStatus'>) => Promise<void>;
   updateExcelReviewStatus: (submissionId: string, reviewStatus: 'pending' | 'approved' | 'rejected', score?: number, feedback?: string) => Promise<void>;
-  updateCandidatePassword: (email: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
+  updateCandidatePassword: (email: string, newPassword: string, isCustom?: boolean) => Promise<{ success: boolean; error?: string }>;
   resetCandidatePassword: (candidateId: string) => Promise<string>;
   verifyCandidateAuth: (email: string, password: string) => { success: boolean; candidate?: Candidate; isTemporary?: boolean; error?: string };
 }
@@ -420,6 +420,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       typingTemplateId?: string;
       excelEnabled?: boolean;
       excelAssessmentIds?: string[];
+      temporaryPassword?: string;
+      customPassword?: string;
+      isPasswordChanged?: boolean;
     }
   ) => {
     if (isSupabaseConfigured) {
@@ -435,6 +438,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCandidates(prev =>
       prev.map(c => {
         if (c.id !== candidateId) return c;
+        const finalTemp = updatedData.temporaryPassword !== undefined ? updatedData.temporaryPassword : c.temporaryPassword;
+        const finalPwd = updatedData.customPassword !== undefined ? updatedData.customPassword : c.customPassword;
+        const finalChg = updatedData.isPasswordChanged !== undefined ? updatedData.isPasswordChanged : c.isPasswordChanged;
         return {
           ...c,
           name: updatedData.name,
@@ -447,7 +453,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           typingTemplateId: updatedData.typingTemplateId,
           excelEnabled: updatedData.excelEnabled,
           excelAssessmentIds: updatedData.excelAssessmentIds,
-          avatar: `gender:${updatedData.gender}${updatedData.area ? `|area:${updatedData.area}` : ''}${secPart}`,
+          temporaryPassword: finalTemp,
+          customPassword: finalPwd,
+          isPasswordChanged: finalChg,
+          avatar: `gender:${updatedData.gender}${updatedData.area ? `|area:${updatedData.area}` : ''}${secPart}${finalTemp ? `|tmp:${finalTemp}` : ''}${finalPwd ? `|pwd:${finalPwd}` : ''}${finalChg !== undefined ? `|chg:${finalChg ? '1' : '0'}` : ''}`,
         };
       })
     );
@@ -553,7 +562,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return undefined;
   };
 
-  const updateCandidatePassword = async (email: string, newPassword: string): Promise<{ success: boolean; error?: string }> => {
+  const updateCandidatePassword = async (
+    email: string,
+    newPassword: string,
+    isCustom: boolean = true
+  ): Promise<{ success: boolean; error?: string }> => {
     const cand = findCandidateFlexible(email);
     if (!cand) {
       return { success: false, error: 'Candidate not found' };
@@ -561,10 +574,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (isSupabaseConfigured) {
       try {
-        await candidateService.updatePassword(cand.email, {
-          customPassword: newPassword,
-          isPasswordChanged: true,
-        });
+        if (isCustom) {
+          await candidateService.updatePassword(cand.email, {
+            customPassword: newPassword,
+            isPasswordChanged: true,
+          });
+        } else {
+          await candidateService.updatePassword(cand.email, {
+            temporaryPassword: newPassword,
+            isPasswordChanged: false,
+          });
+        }
       } catch (err) {
         console.error('Error updating candidate password on Supabase:', err);
       }
@@ -575,8 +595,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         c.id === cand.id
           ? {
               ...c,
-              customPassword: newPassword,
-              isPasswordChanged: true,
+              ...(isCustom
+                ? { customPassword: newPassword, isPasswordChanged: true }
+                : { temporaryPassword: newPassword, isPasswordChanged: false }),
             }
           : c
       )
@@ -626,15 +647,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const trimmedPass = (password || '').trim();
 
     // 1. Check custom password if set
-    if (cand.isPasswordChanged && cand.customPassword) {
-      if (cand.customPassword === trimmedPass) {
+    if (cand.customPassword) {
+      if (cand.customPassword === trimmedPass || cand.customPassword.toLowerCase() === trimmedPass.toLowerCase()) {
         return { success: true, candidate: cand, isTemporary: false };
       }
     }
 
-    // 2. Check candidate-specific temporary password
+    // 2. Check candidate-specific temporary/initial password set by admin or system
     const expectedTemp = cand.temporaryPassword || 'SEU-temp-101';
-    if (trimmedPass.toLowerCase() === expectedTemp.toLowerCase()) {
+    if (trimmedPass === expectedTemp || trimmedPass.toLowerCase() === expectedTemp.toLowerCase()) {
       return { success: true, candidate: cand, isTemporary: true };
     }
 
