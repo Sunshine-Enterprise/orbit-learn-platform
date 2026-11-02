@@ -50,6 +50,9 @@ export interface Candidate {
   excelEnabled?: boolean;
   excelAssessmentIds?: string[];
   registeredAt: string;
+  temporaryPassword?: string;
+  customPassword?: string;
+  isPasswordChanged?: boolean;
 }
 
 export type AssessmentStatus = 'pending' | 'in_progress' | 'completed';

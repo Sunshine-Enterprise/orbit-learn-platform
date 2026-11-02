@@ -11,6 +11,7 @@ interface SendEmailPayload {
   type?: 'quiz' | 'typing' | 'excel' | 'custom';
   language?: 'es' | 'en';
   assessmentCode?: string;
+  temporaryPassword?: string;
 }
 
 function getEnvVar(key: string): string {
@@ -163,20 +164,45 @@ function generateHtmlEmail(payload: SendEmailPayload): { subject: string; html: 
                 </tr>
               </table>
 
-              <!-- Highlighted Assessment Access Code Box -->
+              <!-- Highlighted Assessment Access Credentials Box -->
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f0f7ff;border:2px dashed #93c5fd;border-radius:12px;margin-bottom:24px;text-align:center;">
                 <tr>
                   <td style="padding:18px 20px;">
-                    <span style="font-size:11px;font-weight:700;color:#1e40af;text-transform:uppercase;letter-spacing:0.08em;display:block;margin-bottom:8px;">
-                      ${isEn ? 'Your Assessment Access Code' : 'Código de Acceso a tu Evaluación'}
+                    <span style="font-size:11px;font-weight:700;color:#1e40af;text-transform:uppercase;letter-spacing:0.08em;display:block;margin-bottom:12px;">
+                      ${isEn ? 'Your Assessment Access Credentials' : 'Tus Credenciales Oficiales de Acceso'}
                     </span>
-                    <div style="font-family:'Courier New',Courier,monospace;font-size:20px;font-weight:800;color:#1d4ed8;letter-spacing:0.1em;background-color:#ffffff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 18px;display:inline-block;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-                      ${code}
-                    </div>
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border:1px solid #bfdbfe;border-radius:10px;padding:12px 16px;margin-bottom:12px;text-align:left;">
+                      <tr>
+                        <td style="padding:5px 0;font-size:12px;color:#64748b;font-weight:600;width:42%;">
+                          ${isEn ? 'Registered Email:' : 'Correo Registrado:'}
+                        </td>
+                        <td style="padding:5px 0;font-size:13px;color:#0f172a;font-weight:700;font-family:monospace;">
+                          ${payload.candidateEmail}
+                        </td>
+                      </tr>
+                      ${payload.temporaryPassword ? `
+                      <tr>
+                        <td style="padding:5px 0;font-size:12px;color:#64748b;font-weight:600;">
+                          ${isEn ? 'Temporary Password:' : 'Contraseña Temporal:'}
+                        </td>
+                        <td style="padding:5px 0;font-size:14px;color:#1d4ed8;font-weight:900;font-family:'Courier New',monospace;letter-spacing:0.06em;">
+                          ${payload.temporaryPassword}
+                        </td>
+                      </tr>
+                      ` : ''}
+                      <tr>
+                        <td style="padding:5px 0;font-size:12px;color:#64748b;font-weight:600;">
+                          ${isEn ? 'Assessment Code:' : 'Código de Evaluación:'}
+                        </td>
+                        <td style="padding:5px 0;font-size:13px;color:#0f172a;font-weight:800;font-family:'Courier New',monospace;">
+                          ${code}
+                        </td>
+                      </tr>
+                    </table>
                     <p style="margin:0;font-size:12px;color:#3b82f6;line-height:1.4;">
                       ${isEn
-                        ? 'Click the button below to start automatically, or enter this code on the verification screen.'
-                        : 'Haz clic en el botón inferior para ingresar directamente, o ingresa este código en la pantalla de acceso.'
+                        ? 'Log in using your registered email and temporary password. You can keep this password or set your own custom password upon entering.'
+                        : 'Inicia sesión con tu correo y contraseña temporal. Podrás ingresar con esta clave o establecer tu propia contraseña definitiva al acceder.'
                       }
                     </p>
                   </td>

@@ -42,6 +42,7 @@ export const CandidateModal: React.FC<Props> = ({ isOpen, onClose, candidateToEd
   const [isCustomRole, setIsCustomRole] = useState(false);
   const [customRoleText, setCustomRoleText] = useState('');
   const [gender, setGender] = useState<'male' | 'female'>('male');
+  const [temporaryPassword, setTemporaryPassword] = useState('');
 
   // Typing and Excel toggles
   const [typingEnabled, setTypingEnabled] = useState(false);
@@ -57,6 +58,7 @@ export const CandidateModal: React.FC<Props> = ({ isOpen, onClose, candidateToEd
         setEmail(candidateToEdit.email);
         const resolvedGender = resolveCandidateGender(candidateToEdit);
         setGender(resolvedGender);
+        setTemporaryPassword(candidateToEdit.temporaryPassword || 'SEU-temp-101');
 
         const candArea = candidateToEdit.area || (areas.length > 0 ? areas[0].name : '');
         setSelectedArea(candArea);
@@ -83,6 +85,7 @@ export const CandidateModal: React.FC<Props> = ({ isOpen, onClose, candidateToEd
       } else {
         setName('');
         setEmail('');
+        setTemporaryPassword(`SEU-temp-${Math.floor(1000 + Math.random() * 9000)}`);
         setGender('male');
         setCustomRoleText('');
         setIsCustomRole(false);
@@ -160,6 +163,7 @@ export const CandidateModal: React.FC<Props> = ({ isOpen, onClose, candidateToEd
         typingTemplateId: typingEnabled ? typingTemplateId : undefined,
         excelEnabled,
         excelAssessmentIds: excelEnabled ? excelAssessmentIds : [],
+        temporaryPassword: temporaryPassword.trim() || undefined,
       });
     }
 
@@ -228,6 +232,24 @@ export const CandidateModal: React.FC<Props> = ({ isOpen, onClose, candidateToEd
               onChange={e => setEmail(e.target.value)}
               className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-1 focus:ring-[#2368f5]"
             />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-800 mb-1">
+              {language === 'es' ? 'Contraseña Temporal de Acceso' : 'Initial Temporary Password'}
+            </label>
+            <input
+              type="text"
+              value={temporaryPassword}
+              onChange={e => setTemporaryPassword(e.target.value)}
+              className="w-full text-xs font-mono p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-1 focus:ring-[#2368f5]"
+              placeholder="ej. SEU-temp-101"
+            />
+            <p className="text-[11px] text-slate-400 mt-1">
+              {language === 'es'
+                ? 'El postulante recibirá esta clave por correo y podrá conservarla o cambiarla al acceder.'
+                : 'Candidate will receive this password via email and can keep or change it upon entry.'}
+            </p>
           </div>
 
           {/* Primary Area Selection */}

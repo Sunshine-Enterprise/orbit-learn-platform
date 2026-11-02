@@ -14,6 +14,8 @@ import {
   Mars,
   Venus,
   Edit3,
+  KeyRound,
+  RotateCcw,
 } from 'lucide-react';
 
 interface Props {
@@ -31,7 +33,9 @@ export const CandidateProfileModal: React.FC<Props> = ({
   onAssignTest,
   onEdit,
 }) => {
-  const { assignments, language, t } = useApp();
+  const { assignments, language, t, resetCandidatePassword } = useApp();
+  const [currentTempPass, setCurrentTempPass] = React.useState<string>(candidate?.temporaryPassword || 'SEU-temp-101');
+  const [isResetting, setIsResetting] = React.useState(false);
 
   if (!candidate) return null;
 
@@ -161,6 +165,47 @@ export const CandidateProfileModal: React.FC<Props> = ({
               {completedAssignments.length > 0 ? `${bestScore}%` : '--'}
             </span>
           </div>
+        </div>
+
+        {/* Candidate Access Credentials Card */}
+        <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs mb-3">
+          <div className="space-y-1">
+            <span className="font-bold text-slate-700 flex items-center gap-1.5 text-[11px] uppercase tracking-wider">
+              <KeyRound className="w-3.5 h-3.5 text-[#2368f5]" />
+              {isEs ? 'Credenciales de Acceso del Candidato' : 'Candidate Portal Access Credentials'}
+            </span>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-slate-500 font-medium">{isEs ? 'Contraseña actual:' : 'Current password:'}</span>
+              <span className="font-mono font-bold text-blue-700 bg-white px-2 py-0.5 rounded border border-blue-200">
+                {currentTempPass}
+              </span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 font-semibold">
+                {candidate.isPasswordChanged
+                  ? (isEs ? 'Personalizada por candidato' : 'Custom password')
+                  : (isEs ? 'Temporal activa' : 'Active temporary')}
+              </span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            disabled={isResetting}
+            onClick={async () => {
+              setIsResetting(true);
+              try {
+                const newTemp = await resetCandidatePassword(candidate.id);
+                setCurrentTempPass(newTemp);
+                alert(isEs ? `Nueva contraseña temporal generada: ${newTemp}` : `New temporary password generated: ${newTemp}`);
+              } finally {
+                setIsResetting(false);
+              }
+            }}
+            className="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 font-bold border border-slate-300 rounded-xl transition-colors cursor-pointer text-xs flex items-center gap-1.5 shrink-0"
+            title={isEs ? 'Generar nueva contraseña temporal' : 'Generate new temporary password'}
+          >
+            <RotateCcw className={`w-3.5 h-3.5 text-[#2368f5] ${isResetting ? 'animate-spin' : ''}`} />
+            <span>{isEs ? 'Restablecer Clave Temporal' : 'Reset Temp Password'}</span>
+          </button>
         </div>
 
         {/* Assessment History */}

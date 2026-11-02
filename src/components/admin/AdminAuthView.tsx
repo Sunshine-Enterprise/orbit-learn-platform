@@ -10,6 +10,9 @@ import {
   AlertCircle,
   CheckCircle2,
   GraduationCap,
+  Eye,
+  EyeOff,
+  KeyRound,
 } from 'lucide-react';
 
 interface Props {
@@ -18,10 +21,13 @@ interface Props {
 }
 
 export const AdminAuthView: React.FC<Props> = ({ onSuccess, onSwitchToCandidate }) => {
-  const { t } = useApp();
+  const { t, language } = useApp();
+  const isEs = language === 'es';
+
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -68,16 +74,10 @@ export const AdminAuthView: React.FC<Props> = ({ onSuccess, onSwitchToCandidate 
     }
   };
 
-  const handleQuickDemoAccess = () => {
-    // Quick admin access for evaluation / review
-    const mockUser = {
-      id: 'admin-quick-access',
-      email: 'recruiter@skillproof.com',
-      name: 'Reclutador Enterprise',
-      role: 'recruiter',
-    };
-    localStorage.setItem('skillproof_admin_session', JSON.stringify(mockUser));
-    onSuccess();
+  const handleFillAuthorizedAdmin = () => {
+    setEmail('admin@seu-usa.com');
+    setPassword('SeuAdmin2026!');
+    setErrorMessage(null);
   };
 
   return (
@@ -90,7 +90,9 @@ export const AdminAuthView: React.FC<Props> = ({ onSuccess, onSwitchToCandidate 
           {t.adminAuth.brandTitle}
         </h1>
         <p className="text-xs text-[#60738a] mt-1">
-          {t.adminAuth.brandSubtitle}
+          {isEs
+            ? 'Inicio de sesión administrativo corporativo en vivo'
+            : 'Live Enterprise Administrator Portal Access'}
         </p>
       </div>
 
@@ -167,14 +169,22 @@ export const AdminAuthView: React.FC<Props> = ({ onSuccess, onSwitchToCandidate 
             <div className="relative">
               <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
                 minLength={6}
                 placeholder="••••••••"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                className="w-full text-xs pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#2368f5]/20 focus:border-[#2368f5]"
+                className="w-full text-xs pl-9 pr-10 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#2368f5]/20 focus:border-[#2368f5]"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(prev => !prev)}
+                className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+                title={showPassword ? (isEs ? 'Ocultar contraseña' : 'Hide password') : (isEs ? 'Mostrar contraseña' : 'Show password')}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
           </div>
 
@@ -208,19 +218,29 @@ export const AdminAuthView: React.FC<Props> = ({ onSuccess, onSwitchToCandidate 
           </button>
         </form>
 
-        {/* Quick Demo Access Bypass Button */}
-        <div className="pt-3 border-t border-slate-100">
-          <button
-            type="button"
-            onClick={handleQuickDemoAccess}
-            className="w-full py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-xl border border-slate-200 transition-colors cursor-pointer"
-          >
-            {t.adminAuth.quickDemoBtn}
-          </button>
+        {/* Live Admin Credentials Reference Card */}
+        <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="font-bold text-slate-700 flex items-center gap-1.5 text-[11px] uppercase tracking-wider">
+              <KeyRound className="w-3.5 h-3.5 text-[#2368f5]" />
+              {isEs ? 'Credenciales Oficiales en Vivo' : 'Live Official Credentials'}
+            </span>
+            <button
+              type="button"
+              onClick={handleFillAuthorizedAdmin}
+              className="text-[11px] font-bold text-[#2368f5] hover:underline cursor-pointer"
+            >
+              {isEs ? 'Pre-llenar datos' : 'Autofill admin'}
+            </button>
+          </div>
+          <div className="font-mono text-[11px] text-slate-600 bg-white p-2 rounded-lg border border-slate-200 space-y-0.5">
+            <p><span className="text-slate-400 select-none">Usuario: </span>admin@seu-usa.com</p>
+            <p><span className="text-slate-400 select-none">Contraseña: </span>SeuAdmin2026!</p>
+          </div>
         </div>
 
         {/* Link to Candidate Portal */}
-        <div className="text-center pt-2">
+        <div className="text-center pt-1">
           <button
             type="button"
             onClick={onSwitchToCandidate}

@@ -9,6 +9,7 @@ export interface SendAssessmentEmailParams {
   type?: 'quiz' | 'typing' | 'excel' | 'custom';
   language?: 'es' | 'en';
   assessmentCode?: string;
+  temporaryPassword?: string;
 }
 
 export interface SendEmailResponse {

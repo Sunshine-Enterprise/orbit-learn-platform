@@ -18,6 +18,12 @@ import {
   Keyboard,
   FileSpreadsheet,
   BookOpen,
+  Mail,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Key,
+  ShieldAlert,
 } from 'lucide-react';
 
 interface Props {
@@ -40,19 +46,41 @@ export const CandidateExamAccess: React.FC<Props> = ({ onSwitchToAdmin }) => {
     excelAssessments,
     excelSubmissions,
     setActiveRole,
+    verifyCandidateAuth,
+    updateCandidatePassword,
     t,
     language,
   } = useApp();
 
-  const [examCode, setExamCode] = useState('');
+  const isEs = language === 'es';
+
+  // Auth tabs & input state
+  const [authTab, setAuthTab] = useState<'login' | 'change_password'>('login');
   const [candidateEmail, setCandidateEmail] = useState('');
+  const [candidatePassword, setCandidatePassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Password change state
+  const [currentTempPass, setCurrentTempPass] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+
+  // Session state
   const [candidateSession, setCandidateSession] = useState<CandidateSession | null>(null);
   const [activeAssignment, setActiveAssignment] = useState<AssessmentAssignment | null>(null);
   const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const [isUsingTempPassword, setIsUsingTempPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isTestModalOpen, setIsTestModalOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Typing and Excel modal state
+  // In-lobby password change modal
+  const [isLobbyPassModalOpen, setIsLobbyPassModalOpen] = useState(false);
+  const [lobbyNewPass, setLobbyNewPass] = useState('');
+  const [lobbyConfirmPass, setLobbyConfirmPass] = useState('');
+
+  // Modals state
+  const [isTestModalOpen, setIsTestModalOpen] = useState(false);
   const [isTypingModalOpen, setIsTypingModalOpen] = useState(false);
   const [selectedTypingAssignment, setSelectedTypingAssignment] = useState<TypingAssignment | null>(null);
   const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
@@ -158,115 +186,161 @@ export const CandidateExamAccess: React.FC<Props> = ({ onSwitchToAdmin }) => {
       };
     }
 
-    const emailAssign = assignments.find(a => a.candidateEmail.toLowerCase() === code);
-    if (emailAssign) {
-      return {
-        session: {
-          candidateId: emailAssign.candidateId,
-          candidateName: emailAssign.candidateName,
-          candidateEmail: emailAssign.candidateEmail,
-        },
-        assignment: emailAssign,
-        typing: null,
-        excel: null,
-      };
-    }
-
-    const emailTyping = typingAssignments.find(t => t.candidateEmail.toLowerCase() === code);
-    if (emailTyping) {
-      const candAssign = assignments.find(
-        a => a.candidateEmail.toLowerCase() === emailTyping.candidateEmail.toLowerCase()
-      );
-      return {
-        session: {
-          candidateId: emailTyping.candidateId,
-          candidateName: emailTyping.candidateName,
-          candidateEmail: emailTyping.candidateEmail,
-        },
-        assignment: candAssign || null,
-        typing: emailTyping,
-        excel: null,
-      };
-    }
-
-    const emailExcel = excelSubmissions.find(s => s.candidateEmail.toLowerCase() === code);
-    if (emailExcel) {
-      const candAssign = assignments.find(
-        a => a.candidateEmail.toLowerCase() === emailExcel.candidateEmail.toLowerCase()
-      );
-      return {
-        session: {
-          candidateId: emailExcel.candidateId,
-          candidateName: emailExcel.candidateName,
-          candidateEmail: emailExcel.candidateEmail,
-        },
-        assignment: candAssign || null,
-        typing: null,
-        excel: null,
-      };
-    }
-
     return null;
   };
 
-  // Check URL query param (?code=... or ?test=...)
+  // Check URL query param (?code=... or ?test=... or ?email=...)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const emailParam = params.get('email');
+    const tempParam = params.get('temp');
     const codeParam = params.get('code') || params.get('test');
-    if (codeParam) {
-      setExamCode(codeParam.trim());
+
+    if (emailParam) {
+      setCandidateEmail(emailParam.trim());
+      if (tempParam) {
+        setCandidatePassword(tempParam.trim());
+      }
+    } else if (codeParam) {
       const res = resolveCandidate(codeParam.trim());
       if (res) {
-        setCandidateSession(res.session);
         setCandidateEmail(res.session.candidateEmail);
-        if (res.assignment) {
-          setActiveAssignment(res.assignment);
-        }
-        setIsEmailVerified(true);
       }
     }
   }, [assignments, typingAssignments, excelSubmissions, candidates]);
 
-  const handleVerifyCode = (e: React.FormEvent) => {
+  // Handle Candidate Login with Email + Password (temporary or custom)
+  const handleCandidateLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
+    setSuccessMessage(null);
 
-    const res = resolveCandidate(examCode);
-    if (res) {
-      setCandidateSession(res.session);
-      setCandidateEmail(res.session.candidateEmail);
-      if (res.assignment) {
-        setActiveAssignment(res.assignment);
-      }
-      setIsEmailVerified(true);
+    const emailTrimmed = candidateEmail.trim().toLowerCase();
+    const result = verifyCandidateAuth(emailTrimmed, candidatePassword);
+
+    if (!result.success || !result.candidate) {
+      setErrorMessage(
+        result.error ||
+          (isEs
+            ? 'Credenciales de acceso incorrectas. Ingrese con la contraseña temporal recibida por correo.'
+            : 'Invalid login credentials. Please use the temporary password received by email.')
+      );
       return;
     }
 
-    setErrorMessage(t.candidateAccess.screenCode.codeNotFound);
+    const cand = result.candidate;
+    setIsUsingTempPassword(Boolean(result.isTemporary));
+
+    const candAssign = assignments.find(
+      a => a.candidateEmail.toLowerCase() === cand.email.toLowerCase()
+    );
+
+    setCandidateSession({
+      candidateId: cand.id,
+      candidateName: cand.name,
+      candidateEmail: cand.email,
+    });
+    if (candAssign) {
+      setActiveAssignment(candAssign);
+    }
+    setIsEmailVerified(true);
   };
 
-  const handleVerifyEmail = (e: React.FormEvent) => {
+  // Handle Changing Temporary Password to Permanent Password before entry
+  const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
+    setSuccessMessage(null);
 
-    const expected = (candidateSession?.candidateEmail || activeAssignment?.candidateEmail || '').trim().toLowerCase();
-    const entered = candidateEmail.trim().toLowerCase();
-
-    if (!expected || entered !== expected) {
-      setErrorMessage(t.candidateAccess.screenEmail.emailMismatch);
+    const emailTrimmed = candidateEmail.trim().toLowerCase();
+    const verify = verifyCandidateAuth(emailTrimmed, currentTempPass);
+    if (!verify.success) {
+      setErrorMessage(
+        isEs
+          ? 'La contraseña temporal ingresada no es válida para este correo.'
+          : 'The current temporary password entered is invalid for this email.'
+      );
       return;
     }
 
-    setIsEmailVerified(true);
+    if (newPassword.length < 6) {
+      setErrorMessage(
+        isEs
+          ? 'La nueva contraseña debe tener un mínimo de 6 caracteres.'
+          : 'Your new custom password must be at least 6 characters.'
+      );
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setErrorMessage(
+        isEs ? 'Las nuevas contraseñas no coinciden.' : 'New custom passwords do not match.'
+      );
+      return;
+    }
+
+    const res = await updateCandidatePassword(emailTrimmed, newPassword);
+    if (!res.success) {
+      setErrorMessage(res.error || 'Failed to update password');
+      return;
+    }
+
+    // Success: auto-login candidate with permanent password
+    setIsUsingTempPassword(false);
+    const cand = verify.candidate || candidates.find(c => c.email.toLowerCase() === emailTrimmed);
+    if (cand) {
+      const candAssign = assignments.find(
+        a => a.candidateEmail.toLowerCase() === cand.email.toLowerCase()
+      );
+      setCandidateSession({
+        candidateId: cand.id,
+        candidateName: cand.name,
+        candidateEmail: cand.email,
+      });
+      if (candAssign) {
+        setActiveAssignment(candAssign);
+      }
+      setIsEmailVerified(true);
+    }
+  };
+
+  // Handle changing password from inside the lobby
+  const handleLobbyChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage(null);
+    if (lobbyNewPass.length < 6) {
+      alert(isEs ? 'La nueva contraseña debe tener al menos 6 caracteres.' : 'New password must have at least 6 characters.');
+      return;
+    }
+    if (lobbyNewPass !== lobbyConfirmPass) {
+      alert(isEs ? 'Las contraseñas no coinciden.' : 'Passwords do not match.');
+      return;
+    }
+
+    const effectiveEmail = candidateSession?.candidateEmail || '';
+    const res = await updateCandidatePassword(effectiveEmail, lobbyNewPass);
+    if (res.success) {
+      setIsUsingTempPassword(false);
+      setIsLobbyPassModalOpen(false);
+      setLobbyNewPass('');
+      setLobbyConfirmPass('');
+      alert(isEs ? 'Tu contraseña personalizada ha sido establecida exitosamente.' : 'Your custom password has been saved successfully.');
+    } else {
+      alert(res.error || 'Error updating password');
+    }
   };
 
   const handleExitToLogin = () => {
     setCandidateSession(null);
     setActiveAssignment(null);
     setIsEmailVerified(false);
-    setExamCode('');
-    setCandidateEmail('');
+    setIsUsingTempPassword(false);
+    setCandidatePassword('');
+    setCurrentTempPass('');
+    setNewPassword('');
+    setConfirmPassword('');
     setErrorMessage(null);
+    setSuccessMessage(null);
     if (window.history.pushState) {
       const cleanUrl = window.location.protocol + '//' + window.location.host + window.location.pathname;
       window.history.pushState({ path: cleanUrl }, '', cleanUrl);
@@ -302,60 +376,265 @@ export const CandidateExamAccess: React.FC<Props> = ({ onSwitchToAdmin }) => {
           {t.candidateAccess.brandTitle}
         </h1>
         <p className="text-xs sm:text-sm text-[#60738a] mt-1">
-          {t.candidateAccess.brandSubtitle}
+          {isEs
+            ? 'Acceso Seguro para Postulantes mediante Correo y Contraseña'
+            : 'Secure Candidate Access with Email and Password'}
         </p>
       </div>
 
-      {/* Screen 1: Request Exam Code if not selected */}
-      {!candidateSession && !currentAssignment && (
+      {/* Screen 1: Candidate Authentication Card */}
+      {(!candidateSession || !isEmailVerified) && (
         <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xl space-y-6">
-          <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#2368f5] flex items-center justify-center shrink-0">
-              <Lock className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="font-bold text-base text-[#10243e]">
-                {t.candidateAccess.screenCode.headerTitle}
-              </h2>
-              <p className="text-xs text-[#60738a]">
-                {t.candidateAccess.screenCode.headerSubtitle}
-              </p>
+          {/* Auth Tab Switcher */}
+          <div className="flex bg-slate-100 p-1 rounded-2xl">
+            <button
+              type="button"
+              onClick={() => {
+                setAuthTab('login');
+                setErrorMessage(null);
+                setSuccessMessage(null);
+              }}
+              className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                authTab === 'login'
+                  ? 'bg-white text-[#10243e] shadow-xs'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              {isEs ? 'Iniciar Sesión' : 'Sign In'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setAuthTab('change_password');
+                setErrorMessage(null);
+                setSuccessMessage(null);
+              }}
+              className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                authTab === 'change_password'
+                  ? 'bg-white text-[#10243e] shadow-xs'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              {isEs ? 'Establecer Contraseña Propia' : 'Set Custom Password'}
+            </button>
+          </div>
+
+          {authTab === 'login' ? (
+            <form onSubmit={handleCandidateLogin} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-800 mb-1">
+                  {isEs ? 'Correo Electrónico Registrado' : 'Registered Email Address'} *
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                  <input
+                    type="email"
+                    required
+                    placeholder={isEs ? 'nombre.apellido@correo.com' : 'name.surname@email.com'}
+                    value={candidateEmail}
+                    onChange={e => setCandidateEmail(e.target.value)}
+                    className="w-full text-xs pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#2368f5]/20 focus:border-[#2368f5]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-semibold text-slate-800">
+                    {isEs ? 'Contraseña (Temporal o Personalizada)' : 'Password (Temporary or Custom)'} *
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setAuthTab('change_password')}
+                    className="text-[11px] font-semibold text-[#2368f5] hover:underline cursor-pointer"
+                  >
+                    {isEs ? '¿Cambiar contraseña temporal?' : 'Change temp password?'}
+                  </button>
+                </div>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    placeholder="••••••••"
+                    value={candidatePassword}
+                    onChange={e => setCandidatePassword(e.target.value)}
+                    className="w-full text-xs pl-9 pr-10 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#2368f5]/20 focus:border-[#2368f5]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(prev => !prev)}
+                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    title={showPassword ? (isEs ? 'Ocultar contraseña' : 'Hide password') : (isEs ? 'Mostrar contraseña' : 'Show password')}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {errorMessage && (
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{errorMessage}</span>
+                </div>
+              )}
+
+              {successMessage && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>{successMessage}</span>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="w-full py-3 bg-[#2368f5] hover:bg-[#144cc0] text-white text-xs font-bold rounded-xl transition-colors shadow-xs flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span>{isEs ? 'Ingresar a mis Evaluaciones' : 'Enter My Assessments'}</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleChangePassword} className="space-y-4">
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900 leading-relaxed">
+                <p className="font-bold flex items-center gap-1.5 mb-1">
+                  <Key className="w-3.5 h-3.5 text-[#2368f5]" />
+                  <span>{isEs ? 'Definir Contraseña Personalizada' : 'Set Your Personal Password'}</span>
+                </p>
+                <p>
+                  {isEs
+                    ? 'Si recibiste una contraseña temporal por correo, ingrésala a continuación junto con tu nueva clave para asegurar tus futuros accesos.'
+                    : 'If you received a temporary password via email, enter it below along with your new password to secure future logins.'}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-800 mb-1">
+                  {isEs ? 'Correo Electrónico Registrado' : 'Registered Email Address'} *
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                  <input
+                    type="email"
+                    required
+                    placeholder="nombre.apellido@correo.com"
+                    value={candidateEmail}
+                    onChange={e => setCandidateEmail(e.target.value)}
+                    className="w-full text-xs pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#2368f5]/20 focus:border-[#2368f5]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-800 mb-1">
+                  {isEs ? 'Contraseña Temporal Actual' : 'Current Temporary Password'} *
+                </label>
+                <div className="relative">
+                  <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                  <input
+                    type="text"
+                    required
+                    placeholder="ej. SEU-temp-101"
+                    value={currentTempPass}
+                    onChange={e => setCurrentTempPass(e.target.value)}
+                    className="w-full text-xs font-mono pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#2368f5]/20 focus:border-[#2368f5]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-800 mb-1">
+                    {isEs ? 'Nueva Contraseña' : 'New Password'} *
+                  </label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                    <input
+                      type={showNewPassword ? 'text' : 'password'}
+                      required
+                      minLength={6}
+                      placeholder="Mínimo 6 caracteres"
+                      value={newPassword}
+                      onChange={e => setNewPassword(e.target.value)}
+                      className="w-full text-xs pl-9 pr-9 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#2368f5]/20 focus:border-[#2368f5]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(prev => !prev)}
+                      className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-800 mb-1">
+                    {isEs ? 'Confirmar Nueva Contraseña' : 'Confirm New Password'} *
+                  </label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                    <input
+                      type={showNewPassword ? 'text' : 'password'}
+                      required
+                      minLength={6}
+                      placeholder="Repita la contraseña"
+                      value={confirmPassword}
+                      onChange={e => setConfirmPassword(e.target.value)}
+                      className="w-full text-xs pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#2368f5]/20 focus:border-[#2368f5]"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {errorMessage && (
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{errorMessage}</span>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="w-full py-3 bg-[#2368f5] hover:bg-[#144cc0] text-white text-xs font-bold rounded-xl transition-colors shadow-xs flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span>{isEs ? 'Actualizar Contraseña e Ingresar' : 'Update Password and Enter'}</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </form>
+          )}
+
+          {/* Quick autofill candidate credentials reference card */}
+          <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs space-y-2">
+            <span className="font-bold text-slate-700 flex items-center gap-1.5 text-[11px] uppercase tracking-wider">
+              <KeyRound className="w-3.5 h-3.5 text-[#2368f5]" />
+              {isEs ? 'Candidatos con Contraseña Temporal Activa' : 'Candidates with Active Temporary Password'}
+            </span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+              {candidates.slice(0, 4).map(cand => (
+                <button
+                  key={cand.id}
+                  type="button"
+                  onClick={() => {
+                    setCandidateEmail(cand.email);
+                    setCandidatePassword(cand.temporaryPassword || 'SEU-temp-101');
+                    setCurrentTempPass(cand.temporaryPassword || 'SEU-temp-101');
+                    setErrorMessage(null);
+                  }}
+                  className="p-2 bg-white rounded-lg border border-slate-200 text-left hover:border-blue-400 hover:bg-blue-50/40 transition-colors cursor-pointer"
+                >
+                  <p className="font-bold text-slate-800 truncate">{cand.name}</p>
+                  <p className="text-slate-500 text-[10px] truncate">{cand.email}</p>
+                  <p className="font-mono text-[#2368f5] font-bold text-[10px] mt-0.5">
+                    {cand.isPasswordChanged ? (isEs ? 'Clave propia establecida' : 'Custom pass active') : (cand.temporaryPassword || 'SEU-temp-101')}
+                  </p>
+                </button>
+              ))}
             </div>
           </div>
 
-          <form onSubmit={handleVerifyCode} className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-800 mb-1.5">
-                {t.candidateAccess.screenCode.codeLabel}
-              </label>
-              <input
-                type="text"
-                required
-                placeholder={t.candidateAccess.screenCode.codePlaceholder}
-                value={examCode}
-                onChange={e => setExamCode(e.target.value)}
-                className="w-full text-xs font-mono p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#2368f5]/20 focus:border-[#2368f5]"
-              />
-            </div>
-
-            {errorMessage && (
-              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{errorMessage}</span>
-              </div>
-            )}
-
-            <button
-              type="submit"
-              className="w-full py-3 bg-[#2368f5] hover:bg-[#144cc0] text-white text-xs font-bold rounded-xl transition-colors shadow-xs flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <span>{t.candidateAccess.screenCode.searchBtn}</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </form>
-
           {onSwitchToAdmin && (
-            <div className="pt-4 border-t border-slate-100 text-center">
+            <div className="pt-2 border-t border-slate-100 text-center">
               <button
                 type="button"
                 onClick={() => {
@@ -365,85 +644,14 @@ export const CandidateExamAccess: React.FC<Props> = ({ onSwitchToAdmin }) => {
                 className="text-xs text-[#2368f5] hover:underline font-semibold inline-flex items-center gap-1.5 cursor-pointer"
               >
                 <Briefcase className="w-3.5 h-3.5" />
-                <span>{t.candidateAccess.screenCode.recruiterLink}</span>
+                <span>{isEs ? 'Acceso Administrativo / Reclutador' : 'Administrative / Recruiter Portal Access'}</span>
               </button>
             </div>
           )}
         </div>
       )}
 
-      {/* Screen 2: Identity Verification with Candidate Email */}
-      {(candidateSession || currentAssignment) && !isEmailVerified && (
-        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xl space-y-6">
-          <div className="flex items-start justify-between pb-4 border-b border-slate-100">
-            <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-50 text-[#2368f5] border border-blue-100">
-                {t.candidateAccess.screenEmail.invitationConfirmed}
-              </span>
-              <h2 className="font-extrabold text-lg sm:text-xl text-[#10243e] mt-2">
-                {currentAssignment
-                  ? getLocalizedArea(currentAssignment.quizTitle, language)
-                  : (language === 'es' ? 'Portal de Evaluación Técnica' : 'Technical Skills Assessment Portal')}
-              </h2>
-              <p className="text-xs text-[#60738a] mt-0.5">
-                {t.candidateAccess.screenEmail.registeredCandidate}{' '}
-                <span className="font-bold text-slate-800">{effectiveName}</span>
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={handleExitToLogin}
-              className="text-xs text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
-              title={language === 'es' ? 'Cambiar código' : 'Change code'}
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
-
-          <form onSubmit={handleVerifyEmail} className="space-y-4">
-            <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-[#60738a] space-y-1">
-              <p className="font-semibold text-slate-800">
-                {t.candidateAccess.screenEmail.verifyIdentityTitle}
-              </p>
-              <p>
-                {t.candidateAccess.screenEmail.verifyIdentityDesc}
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-800 mb-1.5">
-                {t.candidateAccess.screenEmail.emailLabel}
-              </label>
-              <input
-                type="email"
-                required
-                placeholder={t.candidateAccess.screenEmail.emailPlaceholder}
-                value={candidateEmail}
-                onChange={e => setCandidateEmail(e.target.value)}
-                className="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#2368f5]/20 focus:border-[#2368f5]"
-                autoFocus
-              />
-            </div>
-
-            {errorMessage && (
-              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{errorMessage}</span>
-              </div>
-            )}
-
-            <button
-              type="submit"
-              className="w-full py-3 bg-[#2368f5] hover:bg-[#144cc0] text-white text-xs font-bold rounded-xl transition-colors shadow-xs flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <span>{t.candidateAccess.screenEmail.unlockBtn}</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </form>
-        </div>
-      )}
-
-      {/* Screen 3: Assessment Lobby & Multi-Module Suite */}
+      {/* Screen 2: Assessment Lobby & Multi-Module Suite */}
       {(candidateSession || currentAssignment) && isEmailVerified && (
         <div className="space-y-6">
           {/* Candidate Greeting Bar */}
@@ -457,6 +665,11 @@ export const CandidateExamAccess: React.FC<Props> = ({ onSwitchToAdmin }) => {
                   <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
                     {t.candidateAccess.screenLobby.identityVerified}
                   </span>
+                  {isUsingTempPassword && (
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                      {isEs ? 'Contraseña Temporal' : 'Temporary Password'}
+                    </span>
+                  )}
                 </div>
                 <h2 className="font-bold text-base sm:text-lg text-[#10243e] mt-1">
                   {t.candidateAccess.screenLobby.welcome} <span className="text-[#2368f5]">{effectiveName}</span>
@@ -465,15 +678,55 @@ export const CandidateExamAccess: React.FC<Props> = ({ onSwitchToAdmin }) => {
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={handleExitToLogin}
-              className="px-3.5 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition-colors cursor-pointer self-start sm:self-auto flex items-center gap-1.5"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              <span>{t.candidateAccess.screenVoucher.exitBtn}</span>
-            </button>
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              {isUsingTempPassword && (
+                <button
+                  type="button"
+                  onClick={() => setIsLobbyPassModalOpen(true)}
+                  className="px-3 py-2 text-xs font-semibold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl transition-colors cursor-pointer flex items-center gap-1.5"
+                  title={isEs ? 'Cambiar a contraseña propia' : 'Change to custom password'}
+                >
+                  <Key className="w-3.5 h-3.5" />
+                  <span>{isEs ? 'Definir Clave Propia' : 'Set Custom Pass'}</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={handleExitToLogin}
+                className="px-3.5 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition-colors cursor-pointer flex items-center gap-1.5"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>{t.candidateAccess.screenVoucher.exitBtn}</span>
+              </button>
+            </div>
           </div>
+
+          {/* Temporary Password Security Notice Banner */}
+          {isUsingTempPassword && (
+            <div className="p-4 bg-amber-50/80 border border-amber-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-900">
+              <div className="flex items-center gap-2.5">
+                <ShieldAlert className="w-5 h-5 text-amber-600 shrink-0" />
+                <div>
+                  <p className="font-bold">
+                    {isEs ? 'Aviso de Seguridad de Acceso' : 'Access Security Notice'}
+                  </p>
+                  <p className="text-amber-800 mt-0.5">
+                    {isEs
+                      ? 'Has ingresado con tu contraseña temporal asignada. Te recomendamos definir una contraseña personal para mayor seguridad en futuros ingresos.'
+                      : 'You are signed in with a temporary password. We recommend setting a personal password for enhanced security.'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsLobbyPassModalOpen(true)}
+                className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl shrink-0 cursor-pointer text-xs"
+              >
+                {isEs ? 'Cambiar Clave' : 'Change Password'}
+              </button>
+            </div>
+          )}
 
           {/* Module 1: Question Bank Technical Assessments */}
           {candidateQuizAssignments.map(quizAssign => {
@@ -578,7 +831,7 @@ export const CandidateExamAccess: React.FC<Props> = ({ onSwitchToAdmin }) => {
                     setActiveAssignment(quizAssign);
                     setIsTestModalOpen(true);
                   }}
-                  className="w-full py-3.5 bg-[#2368f5] hover:bg-[#144cc0] text-white text-sm font-bold rounded-2xl transition-colors shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full py-4 bg-[#2368f5] hover:bg-[#144cc0] text-white font-black text-sm rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <span>{t.candidateAccess.screenLobby.startBtn}</span>
                   <ArrowRight className="w-4 h-4" />
@@ -587,120 +840,175 @@ export const CandidateExamAccess: React.FC<Props> = ({ onSwitchToAdmin }) => {
             );
           })}
 
-          {/* Module 2: Typing Speed Tests (1 Minute) */}
+          {/* Module 2: Typing Assessments */}
           {candidateTypingTests.length > 0 && (
-            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-md space-y-4">
-              <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
-                <div className="w-8 h-8 rounded-lg bg-blue-50 text-[#2368f5] flex items-center justify-center shrink-0">
-                  <Keyboard className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900">
-                    {language === 'es'
-                      ? 'Prueba de Mecanografía (1 Minuto)'
-                      : 'Typing Speed Assessment (1 Minute)'}
-                  </h3>
-                  <p className="text-[11px] text-slate-500">
-                    {language === 'es'
-                      ? 'Mide palabras por minuto (WPM) y precisión bajo estándar internacional de 1 minuto.'
-                      : 'Measures net WPM and typing accuracy under a strict 1-minute benchmark.'}
-                  </p>
+            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xl space-y-5">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#2368f5] flex items-center justify-center shrink-0">
+                    <Keyboard className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-lg text-[#10243e]">
+                      {isEs ? 'Evaluaciones de Velocidad de Mecanografía' : 'Typing Speed Assessments'}
+                    </h3>
+                    <p className="text-xs text-[#60738a]">
+                      {isEs
+                        ? 'Mide palabras por minuto (WPM), precisión y fluidez'
+                        : 'Measure words per minute (WPM), accuracy, and typing speed'}
+                    </p>
+                  </div>
                 </div>
               </div>
 
               <div className="space-y-3">
-                {candidateTypingTests.map(test => (
-                  <div
-                    key={test.id}
-                    className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
-                  >
-                    <div>
-                      <p className="font-bold text-slate-900">{test.templateTitle}</p>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
-                        {test.status === 'completed'
-                          ? `${language === 'es' ? 'Completado:' : 'Completed:'} ${test.netWpm} WPM • ${test.accuracy}% accuracy • ${test.level}`
-                          : (language === 'es' ? 'Estado: Pendiente por realizar' : 'Status: Pending')}
-                      </p>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedTypingAssignment(test);
-                        setIsTypingModalOpen(true);
-                      }}
-                      className={`px-4 py-2.5 rounded-xl font-bold transition-colors cursor-pointer shrink-0 flex items-center justify-center gap-1.5 ${
-                        test.status === 'completed'
-                          ? 'bg-blue-50 text-[#2368f5] hover:bg-blue-100 border border-blue-200'
-                          : 'bg-[#2368f5] hover:bg-[#144cc0] text-white shadow-xs'
-                      }`}
+                {candidateTypingTests.map(test => {
+                  const isDone = test.status === 'completed';
+                  return (
+                    <div
+                      key={test.id}
+                      className="p-4 rounded-2xl border border-slate-200 bg-[#f8fafc] flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                     >
-                      <Keyboard className="w-3.5 h-3.5" />
-                      <span>
-                        {test.status === 'completed'
-                          ? (language === 'es' ? 'Repetir Prueba' : 'Retake Test')
-                          : (language === 'es' ? 'Iniciar Mecanografía' : 'Start Typing Test')}
-                      </span>
-                    </button>
-                  </div>
-                ))}
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                              isDone
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                : 'bg-amber-50 text-amber-700 border-amber-200'
+                            }`}
+                          >
+                            {isDone ? (isEs ? 'Completado' : 'Completed') : (isEs ? 'Pendiente' : 'Pending')}
+                          </span>
+                        </div>
+                        <h4 className="font-bold text-sm text-slate-800">{test.templateTitle}</h4>
+                        {isDone ? (
+                          <div className="flex items-center gap-3 text-xs text-slate-600 font-mono">
+                            <span>{test.netWpm} PPM Netas</span>
+                            <span>•</span>
+                            <span>{test.accuracy}% Precisión</span>
+                            <span>•</span>
+                            <span className="font-bold text-[#2368f5] uppercase">{test.level}</span>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-slate-500">
+                            {isEs ? 'Prueba temporizada de digitación estándar' : 'Standard timed keying test'}
+                          </p>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedTypingAssignment(test);
+                          setIsTypingModalOpen(true);
+                        }}
+                        className={`px-4 py-2.5 rounded-xl font-bold text-xs transition-colors cursor-pointer shrink-0 ${
+                          isDone
+                            ? 'bg-slate-200 hover:bg-slate-300 text-slate-800'
+                            : 'bg-[#2368f5] hover:bg-[#144cc0] text-white shadow-xs'
+                        }`}
+                      >
+                        {isDone ? (isEs ? 'Repetir Prueba' : 'Retake Test') : (isEs ? 'Iniciar Prueba de Typing' : 'Start Typing Test')}
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
 
           {/* Module 3: Practical Excel Assessments */}
           {candidateExcelTasks.length > 0 && (
-            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-md space-y-4">
-              <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
-                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                  <FileSpreadsheet className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900">
-                    {language === 'es'
-                      ? 'Evaluación Práctica en Excel'
-                      : 'Practical Excel Assessments'}
-                  </h3>
-                  <p className="text-[11px] text-slate-500">
-                    {language === 'es'
-                      ? 'Descarga la plantilla oficial, resuelve los ejercicios requeridos y sube tu libro de trabajo.'
-                      : 'Download official workbook template, complete exercises, and upload your resolved spreadsheet.'}
-                  </p>
+            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xl space-y-5">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                    <FileSpreadsheet className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-lg text-[#10243e]">
+                      {isEs ? 'Evaluaciones Prácticas de Excel' : 'Practical Excel Assessments'}
+                    </h3>
+                    <p className="text-xs text-[#60738a]">
+                      {isEs
+                        ? 'Descarga la plantilla oficial, resuelve el ejercicio y sube tu solución'
+                        : 'Download official template workbook, solve the assignment, and upload your file'}
+                    </p>
+                  </div>
                 </div>
               </div>
 
               <div className="space-y-3">
                 {candidateExcelTasks.map(task => {
-                  const assess = excelAssessments.find(a => a.id === task.assessmentId);
+                  const assessObj = excelAssessments.find(a => a.id === task.assessmentId);
+                  const isSubmitted = Boolean(task.submittedFileName);
+                  const isReviewed = task.reviewStatus && task.reviewStatus !== 'pending';
+
                   return (
                     <div
                       key={task.id}
-                      className="p-4 rounded-2xl bg-emerald-50/40 border border-emerald-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                      className="p-4 rounded-2xl border border-slate-200 bg-[#f8fafc] flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                     >
-                      <div>
-                        <p className="font-bold text-slate-900">{task.assessmentTitle || assess?.title}</p>
-                        <p className="text-[11px] text-slate-500 mt-0.5">
-                          {task.submittedFileName
-                            ? `${language === 'es' ? 'Entregado:' : 'Submitted:'} ${task.submittedFileName}`
-                            : (language === 'es' ? 'Estado: Pendiente por subir solución' : 'Status: Solution not uploaded yet')}
-                        </p>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                              isReviewed
+                                ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                : isSubmitted
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                : 'bg-amber-50 text-amber-700 border-amber-200'
+                            }`}
+                          >
+                            {isReviewed
+                              ? (isEs ? `Calificado (${task.score}%)` : `Reviewed (${task.score}%)`)
+                              : isSubmitted
+                              ? (isEs ? 'Archivo Enviado' : 'Submitted')
+                              : (isEs ? 'Pendiente de Envío' : 'Pending')}
+                          </span>
+                        </div>
+                        <h4 className="font-bold text-sm text-slate-800">
+                          {task.assessmentTitle || assessObj?.title || 'Excel Assessment'}
+                        </h4>
+                        {isSubmitted ? (
+                          <p className="text-xs text-slate-600 font-mono">
+                            {task.submittedFileName} • {task.submittedAt}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-slate-500">
+                            {assessObj?.timeLimitMinutes || 30} min • {assessObj?.departmentArea || 'General'}
+                          </p>
+                        )}
                       </div>
 
                       <button
                         type="button"
                         onClick={() => {
-                          if (assess) {
-                            setSelectedExcelAssessment(assess);
-                            setIsExcelModalOpen(true);
-                          }
+                          const targetAssess = assessObj || {
+                            id: task.assessmentId,
+                            title: task.assessmentTitle,
+                            description: '',
+                            departmentArea: '',
+                            timeLimitMinutes: 30,
+                            createdAt: '',
+                            templateFileName: 'SkillProof_Financial_Model_Template.xlsx',
+                            templateFileData: '/templates/SkillProof_Financial_Model_Template.xlsx',
+                            instructions: '',
+                          };
+                          setSelectedExcelAssessment(targetAssess);
+                          setIsExcelModalOpen(true);
                         }}
-                        className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition-colors shadow-xs cursor-pointer shrink-0 flex items-center justify-center gap-1.5"
+                        className={`px-4 py-2.5 rounded-xl font-bold text-xs transition-colors cursor-pointer shrink-0 ${
+                          isSubmitted
+                            ? 'bg-slate-200 hover:bg-slate-300 text-slate-800'
+                            : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
+                        }`}
                       >
-                        <FileSpreadsheet className="w-3.5 h-3.5" />
                         <span>
                           {task.submittedFileName
-                            ? (language === 'es' ? 'Reenviar / Ver Solución' : 'Resubmit / View')
-                            : (language === 'es' ? 'Abrir Tarea de Excel' : 'Open Excel Task')}
+                            ? (isEs ? 'Reenviar / Ver Solución' : 'Resubmit / View')
+                            : (isEs ? 'Abrir Tarea de Excel' : 'Open Excel Task')}
                         </span>
                       </button>
                     </div>
@@ -717,15 +1025,89 @@ export const CandidateExamAccess: React.FC<Props> = ({ onSwitchToAdmin }) => {
                 <AlertCircle className="w-6 h-6" />
               </div>
               <h3 className="font-bold text-sm text-slate-800">
-                {language === 'es' ? 'Sin evaluaciones asignadas' : 'No assessments assigned'}
+                {isEs ? 'Sin evaluaciones asignadas' : 'No assessments assigned'}
               </h3>
               <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                {language === 'es'
+                {isEs
                   ? 'Actualmente no tienes pruebas técnicas pendientes. Comunícate con tu reclutador para más detalles.'
                   : 'You do not have any pending assessments right now. Please contact your hiring recruiter for details.'}
               </p>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Lobby Change Password Modal */}
+      {isLobbyPassModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 border border-slate-200 shadow-2xl space-y-4 my-auto">
+            <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#2368f5] flex items-center justify-center shrink-0">
+                <Key className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-base text-slate-900">
+                  {isEs ? 'Establecer Contraseña Propia' : 'Set Your Personal Password'}
+                </h3>
+                <p className="text-xs text-slate-500">
+                  {effectiveEmail}
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleLobbyChangePassword} className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-800 mb-1">
+                  {isEs ? 'Nueva Contraseña Personalizada' : 'New Custom Password'} *
+                </label>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  placeholder="Mínimo 6 caracteres"
+                  value={lobbyNewPass}
+                  onChange={e => setLobbyNewPass(e.target.value)}
+                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#2368f5]/20 focus:border-[#2368f5]"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-800 mb-1">
+                  {isEs ? 'Confirmar Nueva Contraseña' : 'Confirm New Password'} *
+                </label>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  placeholder="Repita la contraseña"
+                  value={lobbyConfirmPass}
+                  onChange={e => setLobbyConfirmPass(e.target.value)}
+                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#2368f5]/20 focus:border-[#2368f5]"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsLobbyPassModalOpen(false);
+                    setLobbyNewPass('');
+                    setLobbyConfirmPass('');
+                  }}
+                  className="flex-1 py-2.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
+                >
+                  {isEs ? 'Cancelar' : 'Cancel'}
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 text-xs font-bold text-white bg-[#2368f5] hover:bg-[#144cc0] rounded-xl transition-colors shadow-xs cursor-pointer"
+                >
+                  {isEs ? 'Guardar Contraseña' : 'Save Password'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 

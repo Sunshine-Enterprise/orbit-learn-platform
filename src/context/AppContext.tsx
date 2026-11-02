@@ -73,6 +73,9 @@ interface AppContextType {
   assignExcelAssessment: (candidateIds: string[], assessmentId: string) => Promise<void>;
   submitExcelAssessment: (submission: Omit<ExcelSubmission, 'id' | 'submittedAt' | 'reviewStatus'>) => Promise<void>;
   updateExcelReviewStatus: (submissionId: string, reviewStatus: 'pending' | 'approved' | 'rejected', score?: number, feedback?: string) => Promise<void>;
+  updateCandidatePassword: (email: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
+  resetCandidatePassword: (candidateId: string) => Promise<string>;
+  verifyCandidateAuth: (email: string, password: string) => { success: boolean; candidate?: Candidate; isTemporary?: boolean; error?: string };
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -95,7 +98,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [candidates, setCandidates] = useState<Candidate[]>(() => {
     const saved = localStorage.getItem('skillproof_candidates');
-    return saved ? JSON.parse(saved) : initialCandidates;
+    if (!saved) return initialCandidates;
+    try {
+      const parsed: Candidate[] = JSON.parse(saved);
+      return parsed.map((c, idx) => ({
+        ...c,
+        temporaryPassword: c.temporaryPassword || `SEU-temp-${(idx + 1) * 101}`,
+        isPasswordChanged: Boolean(c.isPasswordChanged),
+      }));
+    } catch {
+      return initialCandidates;
+    }
   });
 
   const [assignments, setAssignments] = useState<AssessmentAssignment[]>(() => {
@@ -317,10 +330,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       typingTemplateId?: string;
       excelEnabled?: boolean;
       excelAssessmentIds?: string[];
+      temporaryPassword?: string;
     }
   ) => {
     const secPart = newCandData.secondaryAreas && newCandData.secondaryAreas.length > 0 ? `|sec:${newCandData.secondaryAreas.join(';')}` : '';
     const newId = `cand-${Date.now()}`;
+    const tempPass = newCandData.temporaryPassword || `SEU-temp-${Math.floor(1000 + Math.random() * 9000)}`;
     const created: Candidate = {
       ...newCandData,
       id: newId,
@@ -333,6 +348,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       excelEnabled: newCandData.excelEnabled,
       excelAssessmentIds: newCandData.excelAssessmentIds,
       registeredAt: new Date().toISOString().split('T')[0],
+      temporaryPassword: tempPass,
+      isPasswordChanged: false,
     };
 
     if (isSupabaseConfigured) {
@@ -501,6 +518,78 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     setCandidates(prev => prev.filter(c => c.id !== candidateId));
     setAssignments(prev => prev.filter(a => a.candidateId !== candidateId));
+  };
+
+  const updateCandidatePassword = async (email: string, newPassword: string): Promise<{ success: boolean; error?: string }> => {
+    const norm = email.trim().toLowerCase();
+    const cand = candidates.find(c => c.email.toLowerCase() === norm);
+    if (!cand) {
+      return { success: false, error: 'Candidate not found' };
+    }
+    setCandidates(prev =>
+      prev.map(c =>
+        c.id === cand.id
+          ? {
+              ...c,
+              customPassword: newPassword,
+              isPasswordChanged: true,
+            }
+          : c
+      )
+    );
+    return { success: true };
+  };
+
+  const resetCandidatePassword = async (candidateId: string): Promise<string> => {
+    const newTemp = `SEU-temp-${Math.floor(1000 + Math.random() * 9000)}`;
+    setCandidates(prev =>
+      prev.map(c =>
+        c.id === candidateId
+          ? {
+              ...c,
+              temporaryPassword: newTemp,
+              customPassword: undefined,
+              isPasswordChanged: false,
+            }
+          : c
+      )
+    );
+    return newTemp;
+  };
+
+  const verifyCandidateAuth = (email: string, password: string): { success: boolean; candidate?: Candidate; isTemporary?: boolean; error?: string } => {
+    const norm = email.trim().toLowerCase();
+    const cand = candidates.find(c => c.email.toLowerCase() === norm);
+    if (!cand) {
+      return {
+        success: false,
+        error: language === 'es' ? 'No se encontró ningún candidato registrado con este correo.' : 'No registered candidate found with this email.',
+      };
+    }
+
+    const trimmedPass = password.trim();
+    // 1. Check custom password if set
+    if (cand.isPasswordChanged && cand.customPassword) {
+      if (cand.customPassword === trimmedPass) {
+        return { success: true, candidate: cand, isTemporary: false };
+      }
+    }
+
+    // 2. Check temporary password
+    const expectedTemp = cand.temporaryPassword || 'SEU-temp-101';
+    if (trimmedPass === expectedTemp) {
+      return { success: true, candidate: cand, isTemporary: true };
+    }
+
+    // 3. Fallback master temp password for initial testing
+    if (trimmedPass === 'SkillProof2026!' || trimmedPass === 'SeuCandidate2026!') {
+      return { success: true, candidate: cand, isTemporary: true };
+    }
+
+    return {
+      success: false,
+      error: language === 'es' ? 'Contraseña incorrecta. Ingrese la contraseña temporal recibida por correo o su nueva contraseña.' : 'Incorrect password. Enter the temporary password received by email or your new custom password.',
+    };
   };
 
   const assignQuiz = (candidateId: string, quizId: string, selectedQuestionIds?: string[]) => {
@@ -916,6 +1005,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         assignExcelAssessment,
         submitExcelAssessment,
         updateExcelReviewStatus,
+        updateCandidatePassword,
+        resetCandidatePassword,
+        verifyCandidateAuth,
       }}
     >
       {children}

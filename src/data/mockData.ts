@@ -378,6 +378,8 @@ export const initialCandidates: Candidate[] = [
     avatar: 'gender:female|area:Engineering & Technical',
     gender: 'female',
     registeredAt: '2026-10-02',
+    temporaryPassword: 'SEU-temp-101',
+    isPasswordChanged: false,
   },
   {
     id: 'cand-2',
@@ -388,6 +390,8 @@ export const initialCandidates: Candidate[] = [
     avatar: 'gender:male|area:Information Technology',
     gender: 'male',
     registeredAt: '2026-10-03',
+    temporaryPassword: 'SEU-temp-202',
+    isPasswordChanged: false,
   },
   {
     id: 'cand-3',
@@ -398,6 +402,8 @@ export const initialCandidates: Candidate[] = [
     avatar: 'gender:female|area:Health Care',
     gender: 'female',
     registeredAt: '2026-10-04',
+    temporaryPassword: 'SEU-temp-303',
+    isPasswordChanged: false,
   },
   {
     id: 'cand-4',
@@ -408,6 +414,8 @@ export const initialCandidates: Candidate[] = [
     avatar: 'gender:male|area:Maintenance & Operations',
     gender: 'male',
     registeredAt: '2026-10-05',
+    temporaryPassword: 'SEU-temp-404',
+    isPasswordChanged: false,
   },
 ];
 

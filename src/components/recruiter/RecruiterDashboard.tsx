@@ -144,6 +144,7 @@ export const RecruiterDashboard: React.FC = () => {
         roleApplied: params.roleApplied,
         accessLink: params.link,
         assessmentCode: params.assessmentCode,
+        temporaryPassword: candidates.find(cand => cand.email.toLowerCase() === params.candidateEmail.toLowerCase())?.temporaryPassword || 'SEU-temp-101',
         timeLimit: params.timeLimit,
         questionsCount: params.questionsCount,
         type: params.type || 'quiz',

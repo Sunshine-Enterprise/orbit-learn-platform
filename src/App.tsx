@@ -15,7 +15,7 @@ const AppContent: React.FC = () => {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('code') || params.get('test')) {
+    if (params.get('code') || params.get('test') || params.get('email')) {
       setActiveRole('candidate');
       return;
     }
