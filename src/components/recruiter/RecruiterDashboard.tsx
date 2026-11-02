@@ -838,7 +838,7 @@ export const RecruiterDashboard: React.FC = () => {
                             <div className="flex items-center justify-end gap-2">
                               <button
                                 onClick={() => {
-                                  const link = `${window.location.origin}?code=${item.id}`;
+                                  const link = `${window.location.origin}?code=${item.id}&email=${encodeURIComponent(item.candidateEmail)}`;
                                   navigator.clipboard.writeText(link);
                                   alert(
                                     t.recruiter.pipeline.linkCopiedAlert
@@ -854,7 +854,7 @@ export const RecruiterDashboard: React.FC = () => {
                               </button>
                               <button
                                 onClick={() => {
-                                  const link = `${window.location.origin}?code=${item.id}`;
+                                  const link = `${window.location.origin}?code=${item.id}&email=${encodeURIComponent(item.candidateEmail)}`;
                                   handleSendInviteEmail({
                                     candidateName: item.candidateName,
                                     candidateEmail: item.candidateEmail,
@@ -1809,7 +1809,7 @@ export const RecruiterDashboard: React.FC = () => {
                             <div className="flex items-center justify-end gap-2">
                               <button
                                 onClick={() => {
-                                  const link = `${window.location.origin}?code=${test.id}`;
+                                  const link = `${window.location.origin}?code=${test.id}&email=${encodeURIComponent(test.candidateEmail)}`;
                                   navigator.clipboard.writeText(link);
                                   alert(
                                     t.recruiter.pipeline.linkCopiedAlert
@@ -1825,7 +1825,7 @@ export const RecruiterDashboard: React.FC = () => {
                               </button>
                               <button
                                 onClick={() => {
-                                  const link = `${window.location.origin}?code=${test.id}`;
+                                  const link = `${window.location.origin}?code=${test.id}&email=${encodeURIComponent(test.candidateEmail)}`;
                                   handleSendInviteEmail({
                                     candidateName: test.candidateName,
                                     candidateEmail: test.candidateEmail,
@@ -2178,7 +2178,7 @@ export const RecruiterDashboard: React.FC = () => {
                             )}
                             <button
                               onClick={() => {
-                                const link = `${window.location.origin}?code=${sub.id}`;
+                                const link = `${window.location.origin}?code=${sub.id}&email=${encodeURIComponent(sub.candidateEmail)}`;
                                 navigator.clipboard.writeText(link);
                                 alert(
                                   t.recruiter.pipeline.linkCopiedAlert
@@ -2194,7 +2194,7 @@ export const RecruiterDashboard: React.FC = () => {
                             </button>
                             <button
                               onClick={() => {
-                                const link = `${window.location.origin}?code=${sub.id}`;
+                                const link = `${window.location.origin}?code=${sub.id}&email=${encodeURIComponent(sub.candidateEmail)}`;
                                 handleSendInviteEmail({
                                   candidateName: sub.candidateName,
                                   candidateEmail: sub.candidateEmail,

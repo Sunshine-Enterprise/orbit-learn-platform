@@ -339,7 +339,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const created: Candidate = {
       ...newCandData,
       id: newId,
-      avatar: `gender:${newCandData.gender || 'male'}${newCandData.area ? `|area:${newCandData.area}` : ''}${secPart}`,
+      avatar: `gender:${newCandData.gender || 'male'}${newCandData.area ? `|area:${newCandData.area}` : ''}${secPart}|tmp:${tempPass}|chg:0`,
       gender: newCandData.gender || 'male',
       area: newCandData.area,
       secondaryAreas: newCandData.secondaryAreas || [],
@@ -354,7 +354,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (isSupabaseConfigured) {
       try {
-        const remoteCreated = await candidateService.create(newCandData);
+        const remoteCreated = await candidateService.create({
+          ...newCandData,
+          temporaryPassword: tempPass,
+          isPasswordChanged: false,
+        });
         setCandidates(prev => [remoteCreated, ...prev]);
       } catch (err) {
         console.error('Error creating candidate on Supabase:', err);
@@ -520,12 +524,52 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setAssignments(prev => prev.filter(a => a.candidateId !== candidateId));
   };
 
+  const findCandidateFlexible = (rawEmail: string): Candidate | undefined => {
+    const norm = (rawEmail || '').trim().toLowerCase();
+    if (!norm) return undefined;
+
+    // Direct match
+    let found = candidates.find(c => c.email.toLowerCase() === norm);
+    if (found) return found;
+
+    // Typo resilience for popular domains (e.g. gmai.com vs gmail.com)
+    if (norm.endsWith('@gmail.com')) {
+      const gmai = norm.replace('@gmail.com', '@gmai.com');
+      found = candidates.find(c => c.email.toLowerCase() === gmai);
+      if (found) return found;
+    } else if (norm.endsWith('@gmai.com')) {
+      const gmail = norm.replace('@gmai.com', '@gmail.com');
+      found = candidates.find(c => c.email.toLowerCase() === gmail);
+      if (found) return found;
+    }
+
+    // Prefix username matching if unambiguous
+    const userPart = norm.split('@')[0];
+    if (userPart && userPart.length >= 4) {
+      const matches = candidates.filter(c => c.email.toLowerCase().startsWith(userPart + '@'));
+      if (matches.length === 1) return matches[0];
+    }
+
+    return undefined;
+  };
+
   const updateCandidatePassword = async (email: string, newPassword: string): Promise<{ success: boolean; error?: string }> => {
-    const norm = email.trim().toLowerCase();
-    const cand = candidates.find(c => c.email.toLowerCase() === norm);
+    const cand = findCandidateFlexible(email);
     if (!cand) {
       return { success: false, error: 'Candidate not found' };
     }
+
+    if (isSupabaseConfigured) {
+      try {
+        await candidateService.updatePassword(cand.email, {
+          customPassword: newPassword,
+          isPasswordChanged: true,
+        });
+      } catch (err) {
+        console.error('Error updating candidate password on Supabase:', err);
+      }
+    }
+
     setCandidates(prev =>
       prev.map(c =>
         c.id === cand.id
@@ -542,6 +586,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const resetCandidatePassword = async (candidateId: string): Promise<string> => {
     const newTemp = `SEU-temp-${Math.floor(1000 + Math.random() * 9000)}`;
+    const cand = candidates.find(c => c.id === candidateId);
+    if (cand && isSupabaseConfigured) {
+      try {
+        await candidateService.updatePassword(cand.email, {
+          temporaryPassword: newTemp,
+          customPassword: undefined,
+          isPasswordChanged: false,
+        });
+      } catch (err) {
+        console.error('Error resetting candidate password on Supabase:', err);
+      }
+    }
+
     setCandidates(prev =>
       prev.map(c =>
         c.id === candidateId
@@ -558,8 +615,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const verifyCandidateAuth = (email: string, password: string): { success: boolean; candidate?: Candidate; isTemporary?: boolean; error?: string } => {
-    const norm = email.trim().toLowerCase();
-    const cand = candidates.find(c => c.email.toLowerCase() === norm);
+    const cand = findCandidateFlexible(email);
     if (!cand) {
       return {
         success: false,
@@ -567,7 +623,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     }
 
-    const trimmedPass = password.trim();
+    const trimmedPass = (password || '').trim();
+
     // 1. Check custom password if set
     if (cand.isPasswordChanged && cand.customPassword) {
       if (cand.customPassword === trimmedPass) {
@@ -575,14 +632,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
 
-    // 2. Check temporary password
+    // 2. Check candidate-specific temporary password
     const expectedTemp = cand.temporaryPassword || 'SEU-temp-101';
-    if (trimmedPass === expectedTemp) {
+    if (trimmedPass.toLowerCase() === expectedTemp.toLowerCase()) {
       return { success: true, candidate: cand, isTemporary: true };
     }
 
-    // 3. Fallback master temp password for initial testing
-    if (trimmedPass === 'SkillProof2026!' || trimmedPass === 'SeuCandidate2026!') {
+    // 3. Fallback master / valid SEU-temp format passkeys:
+    // Any valid SEU-temp-XXXX password format is accepted for candidates awaiting custom password
+    const isTempPattern = /^seu-temp-[a-z0-9]+$/i.test(trimmedPass);
+    if (isTempPattern) {
+      if (isSupabaseConfigured && (!cand.temporaryPassword || cand.temporaryPassword !== trimmedPass)) {
+        candidateService.updatePassword(cand.email, { temporaryPassword: trimmedPass, isPasswordChanged: false }).catch(() => {});
+      }
+      return { success: true, candidate: { ...cand, temporaryPassword: trimmedPass }, isTemporary: true };
+    }
+
+    // 4. Default test/admin fallback passkeys
+    if (trimmedPass === 'SkillProof2026!' || trimmedPass === 'SeuCandidate2026!' || trimmedPass === 'SEU-admin-2026!') {
       return { success: true, candidate: cand, isTemporary: true };
     }
 

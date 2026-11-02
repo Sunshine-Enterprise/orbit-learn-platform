@@ -168,8 +168,14 @@ export const CandidateExamAccess: React.FC<Props> = ({ onSwitchToAdmin }) => {
       };
     }
 
-    // 5. Match by Candidate Email
-    const candidateMatch = candidates.find(c => c.email.toLowerCase() === code);
+    // 5. Match by Candidate Email (with domain typo resilience)
+    const candidateMatch = candidates.find(c => {
+      const cEmail = c.email.toLowerCase();
+      if (cEmail === code) return true;
+      if (code.endsWith('@gmail.com') && cEmail === code.replace('@gmail.com', '@gmai.com')) return true;
+      if (code.endsWith('@gmai.com') && cEmail === code.replace('@gmai.com', '@gmail.com')) return true;
+      return false;
+    });
     if (candidateMatch) {
       const candAssign = assignments.find(
         a => a.candidateEmail.toLowerCase() === candidateMatch.email.toLowerCase()
@@ -201,7 +207,9 @@ export const CandidateExamAccess: React.FC<Props> = ({ onSwitchToAdmin }) => {
       if (tempParam) {
         setCandidatePassword(tempParam.trim());
       }
-    } else if (codeParam) {
+    }
+
+    if (codeParam) {
       const res = resolveCandidate(codeParam.trim());
       if (res) {
         setCandidateEmail(res.session.candidateEmail);

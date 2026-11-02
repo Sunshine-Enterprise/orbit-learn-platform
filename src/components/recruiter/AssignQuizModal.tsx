@@ -448,7 +448,7 @@ export const AssignQuizModal: React.FC<Props> = ({
         const typingTpl = typingTemplates.find(t => t.id === selectedTypingId);
         const typingDurationMin = Math.round((typingTpl?.targetDurationSeconds || 180) / 60);
         targetCandidates.forEach(cand => {
-          const directLink = `${window.location.origin}?code=${encodeURIComponent(cand.id)}`;
+          const directLink = `${window.location.origin}?code=${encodeURIComponent(cand.id)}&email=${encodeURIComponent(cand.email)}`;
           sendAssessmentInviteEmail({
             candidateName: cand.name,
             candidateEmail: cand.email,
@@ -488,7 +488,7 @@ export const AssignQuizModal: React.FC<Props> = ({
         const targetCandidates = candidates.filter(c => selectedCandidateIds.includes(c.id));
         const excelObj = excelAssessments.find(a => a.id === selectedExcelId);
         targetCandidates.forEach(cand => {
-          const directLink = `${window.location.origin}?code=${encodeURIComponent(cand.id)}`;
+          const directLink = `${window.location.origin}?code=${encodeURIComponent(cand.id)}&email=${encodeURIComponent(cand.email)}`;
           sendAssessmentInviteEmail({
             candidateName: cand.name,
             candidateEmail: cand.email,
@@ -540,7 +540,7 @@ export const AssignQuizModal: React.FC<Props> = ({
       const targetCandidates = candidates.filter(c => selectedCandidateIds.includes(c.id));
       const firstQuiz = quizzes.find(q => q.id === configuredBanks[0]?.quizId);
       targetCandidates.forEach(cand => {
-        const directLink = `${window.location.origin}?code=${encodeURIComponent(cand.id)}`;
+        const directLink = `${window.location.origin}?code=${encodeURIComponent(cand.id)}&email=${encodeURIComponent(cand.email)}`;
         sendAssessmentInviteEmail({
           candidateName: cand.name,
           candidateEmail: cand.email,
