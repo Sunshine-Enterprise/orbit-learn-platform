@@ -52,12 +52,13 @@ export const ExcelReviewModal: React.FC<Props> = ({ isOpen, onClose, submission 
       link.click();
       document.body.removeChild(link);
     } else {
-      const sampleSol = `Candidate Excel Submission: ${assessment?.title || 'Excel Task'}\nCandidate: ${submission.candidateName} (${submission.candidateEmail})\nSubmitted: ${submission.submittedAt}\n\nCategory,Quarter,Budget,Actual,Variance,Status\nRevenue,Q1,50000,52000,=D4-C4,Favorable\nOperations,Q1,20000,19500,=C5-D5,On Budget\nMarketing,Q1,15000,16200,=C6-D6,Over Budget\nIT Infrastructure,Q1,8000,7800,=C7-D7,Under Budget\nTotal,=SUM(C4:C7),=SUM(D4:D7),=SUM(E4:E7),Calculated\n`;
-      const blob = new Blob([sampleSol], { type: 'text/csv;charset=utf-8;' });
+      const sampleSol = submission.submittedFileData || `Candidate Excel Submission: ${assessment?.title || 'Excel Task'}\nCandidate: ${submission.candidateName} (${submission.candidateEmail})\nSubmitted: ${submission.submittedAt}\n\nCategory,Quarter,Budget,Actual,Variance,Status\nRevenue,Q1,50000,52000,=D4-C4,Favorable\nOperations,Q1,20000,19500,=C5-D5,On Budget\nMarketing,Q1,15000,16200,=C6-D6,Over Budget\nIT Infrastructure,Q1,8000,7800,=C7-D7,Under Budget\nTotal,=SUM(C4:C7),=SUM(D4:D7),=SUM(E4:E7),Calculated\n`;
+      const fileName = (submission.submittedFileName || 'candidate_solution.csv').replace(/\.xlsx$/i, '.csv');
+      const blob = new Blob(['\uFEFF' + sampleSol], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = submission.submittedFileName || 'candidate_solution.csv';
+      link.download = fileName;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

@@ -227,7 +227,10 @@ export const TypingAssessmentModal: React.FC<Props> = ({
             }`}
           >
             <Clock className="w-4 h-4 text-[#2368f5]" />
-            <span>00:{String(timeRemaining).padStart(2, '0')}</span>
+            <span>
+              {String(Math.floor(timeRemaining / 60)).padStart(2, '0')}:
+              {String(timeRemaining % 60).padStart(2, '0')}
+            </span>
           </div>
         </div>
 
@@ -268,9 +271,15 @@ export const TypingAssessmentModal: React.FC<Props> = ({
               <div className="p-3 rounded-2xl bg-blue-50/70 border border-blue-200 text-xs text-blue-800 flex items-center gap-2">
                 <Keyboard className="w-4 h-4 text-[#2368f5] shrink-0" />
                 <span>
-                  {language === 'es'
-                    ? 'Haz clic en el cuadro y comienza a teclear. El temporizador de 60 segundos iniciará con tu primera pulsación.'
-                    : 'Click in the box and start typing. The 60-second countdown will begin upon your first keystroke.'}
+                  {(() => {
+                    const durationMin = Math.round(totalDuration / 60);
+                    const durationLabel = durationMin >= 1
+                      ? `${durationMin} ${language === 'es' ? (durationMin === 1 ? 'minuto' : 'minutos') : (durationMin === 1 ? 'minute' : 'minutes')}`
+                      : `${totalDuration} ${language === 'es' ? 'segundos' : 'seconds'}`;
+                    return language === 'es'
+                      ? `Haz clic en el cuadro y comienza a teclear. El temporizador (${durationLabel}) iniciará con tu primera pulsación.`
+                      : `Click in the box and start typing. The ${durationLabel} countdown will begin upon your first keystroke.`;
+                  })()}
                 </span>
               </div>
             )}

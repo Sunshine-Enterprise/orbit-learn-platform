@@ -60,7 +60,14 @@ export const CandidateExamAccess: React.FC<Props> = ({ onSwitchToAdmin }) => {
 
   // Helper to resolve candidate identity from any code, test ID, or candidate email
   const resolveCandidate = (rawCode: string) => {
-    const code = rawCode.trim().toLowerCase();
+    if (!rawCode) return null;
+    let code = rawCode.trim();
+    try {
+      code = decodeURIComponent(code);
+    } catch {
+      // ignore decode error
+    }
+    code = code.trim().toLowerCase().replace(/^["'#]+|["']+$/g, '');
     if (!code) return null;
 
     // 1. Direct match with an AssessmentAssignment ID
@@ -115,7 +122,25 @@ export const CandidateExamAccess: React.FC<Props> = ({ onSwitchToAdmin }) => {
       };
     }
 
-    // 4. Match by Candidate Email
+    // 4. Match by Candidate ID (e.g. cand-1, cand-2)
+    const candIdMatch = candidates.find(c => c.id.toLowerCase() === code);
+    if (candIdMatch) {
+      const candAssign = assignments.find(
+        a => a.candidateEmail.toLowerCase() === candIdMatch.email.toLowerCase()
+      );
+      return {
+        session: {
+          candidateId: candIdMatch.id,
+          candidateName: candIdMatch.name,
+          candidateEmail: candIdMatch.email,
+        },
+        assignment: candAssign || null,
+        typing: null,
+        excel: null,
+      };
+    }
+
+    // 5. Match by Candidate Email
     const candidateMatch = candidates.find(c => c.email.toLowerCase() === code);
     if (candidateMatch) {
       const candAssign = assignments.find(
@@ -193,9 +218,11 @@ export const CandidateExamAccess: React.FC<Props> = ({ onSwitchToAdmin }) => {
       const res = resolveCandidate(codeParam.trim());
       if (res) {
         setCandidateSession(res.session);
+        setCandidateEmail(res.session.candidateEmail);
         if (res.assignment) {
           setActiveAssignment(res.assignment);
         }
+        setIsEmailVerified(true);
       }
     }
   }, [assignments, typingAssignments, excelSubmissions, candidates]);
@@ -207,9 +234,11 @@ export const CandidateExamAccess: React.FC<Props> = ({ onSwitchToAdmin }) => {
     const res = resolveCandidate(examCode);
     if (res) {
       setCandidateSession(res.session);
+      setCandidateEmail(res.session.candidateEmail);
       if (res.assignment) {
         setActiveAssignment(res.assignment);
       }
+      setIsEmailVerified(true);
       return;
     }
 

@@ -14,6 +14,7 @@ export const TypingTemplateModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const [title, setTitle] = useState('');
   const [templateLang, setTemplateLang] = useState<'en' | 'es'>(language);
   const [difficulty, setDifficulty] = useState<1 | 2 | 3>(2);
+  const [durationSeconds, setDurationSeconds] = useState<number>(180); // default 3 minutes (180s)
   const [text, setText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -40,7 +41,7 @@ export const TypingTemplateModal: React.FC<Props> = ({ isOpen, onClose }) => {
         title: title.trim(),
         language: templateLang,
         difficulty,
-        targetDurationSeconds: 60,
+        targetDurationSeconds: durationSeconds,
         text: cleanText,
       });
 
@@ -48,6 +49,7 @@ export const TypingTemplateModal: React.FC<Props> = ({ isOpen, onClose }) => {
       setTitle('');
       setText('');
       setDifficulty(2);
+      setDurationSeconds(180);
       onClose();
     } catch (err) {
       console.error('Error creating typing template:', err);
@@ -78,8 +80,8 @@ export const TypingTemplateModal: React.FC<Props> = ({ isOpen, onClose }) => {
               </h2>
               <p className="text-xs text-slate-500">
                 {language === 'es'
-                  ? 'Define el texto estandarizado para la prueba de velocidad de 1 minuto'
-                  : 'Define the standardized passage for 1-minute benchmark typing testing'}
+                  ? 'Define el texto estandarizado para la prueba de mecanografía y velocidad'
+                  : 'Define the standardized passage for benchmark typing speed testing'}
               </p>
             </div>
           </div>
@@ -161,6 +163,41 @@ export const TypingTemplateModal: React.FC<Props> = ({ isOpen, onClose }) => {
                   );
                 })}
               </div>
+            </div>
+          </div>
+
+          {/* Duration Selector */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-800 mb-1">
+              {language === 'es' ? 'Duración de la Prueba (Tiempo Límite):' : 'Test Duration (Time Limit):'}
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {[
+                { sec: 60, label: language === 'es' ? '1 Minuto' : '1 Minute' },
+                { sec: 120, label: language === 'es' ? '2 Minutos' : '2 Minutes' },
+                { sec: 180, label: language === 'es' ? '3 Minutos' : '3 Minutes', badge: language === 'es' ? 'Recomendado' : 'Recommended' },
+                { sec: 300, label: language === 'es' ? '5 Minutos' : '5 Minutes' },
+              ].map(opt => (
+                <button
+                  key={opt.sec}
+                  type="button"
+                  onClick={() => setDurationSeconds(opt.sec)}
+                  className={`py-2 px-3 rounded-xl text-xs font-bold border flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer ${
+                    durationSeconds === opt.sec
+                      ? 'bg-[#2368f5] text-white border-[#2368f5] shadow-xs'
+                      : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <span>{opt.label}</span>
+                  {opt.badge && (
+                    <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full ${
+                      durationSeconds === opt.sec ? 'bg-white/20 text-white' : 'bg-blue-50 text-[#2368f5]'
+                    }`}>
+                      {opt.badge}
+                    </span>
+                  )}
+                </button>
+              ))}
             </div>
           </div>
 

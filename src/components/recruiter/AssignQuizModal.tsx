@@ -446,15 +446,17 @@ export const AssignQuizModal: React.FC<Props> = ({
         // Send automated invitation email via Microsoft 365 (web@seu-usa.com)
         const targetCandidates = candidates.filter(c => selectedCandidateIds.includes(c.id));
         const typingTpl = typingTemplates.find(t => t.id === selectedTypingId);
+        const typingDurationMin = Math.round((typingTpl?.targetDurationSeconds || 180) / 60);
         targetCandidates.forEach(cand => {
-          const directLink = `${window.location.origin}?code=${encodeURIComponent(cand.email)}`;
+          const directLink = `${window.location.origin}?code=${encodeURIComponent(cand.id)}`;
           sendAssessmentInviteEmail({
             candidateName: cand.name,
             candidateEmail: cand.email,
-            assessmentTitle: typingTpl?.title || '1-Minute Typing Speed Test',
+            assessmentTitle: typingTpl?.title || (language === 'es' ? 'Prueba de Mecanografía' : 'Typing Speed Assessment'),
             roleApplied: cand.roleApplied,
             accessLink: directLink,
-            timeLimit: 1,
+            assessmentCode: cand.id.toUpperCase(),
+            timeLimit: typingDurationMin,
             type: 'typing',
             language,
           }).catch(() => {});
@@ -485,13 +487,14 @@ export const AssignQuizModal: React.FC<Props> = ({
         const targetCandidates = candidates.filter(c => selectedCandidateIds.includes(c.id));
         const excelObj = excelAssessments.find(a => a.id === selectedExcelId);
         targetCandidates.forEach(cand => {
-          const directLink = `${window.location.origin}?code=${encodeURIComponent(cand.email)}`;
+          const directLink = `${window.location.origin}?code=${encodeURIComponent(cand.id)}`;
           sendAssessmentInviteEmail({
             candidateName: cand.name,
             candidateEmail: cand.email,
-            assessmentTitle: excelObj?.title || 'Practical Excel Assessment',
+            assessmentTitle: excelObj?.title || (language === 'es' ? 'Evaluación Práctica de Excel' : 'Practical Excel Assessment'),
             roleApplied: cand.roleApplied,
             accessLink: directLink,
+            assessmentCode: cand.id.toUpperCase(),
             timeLimit: excelObj?.timeLimitMinutes || 30,
             type: 'excel',
             language,
@@ -535,13 +538,14 @@ export const AssignQuizModal: React.FC<Props> = ({
       const targetCandidates = candidates.filter(c => selectedCandidateIds.includes(c.id));
       const firstQuiz = quizzes.find(q => q.id === configuredBanks[0]?.quizId);
       targetCandidates.forEach(cand => {
-        const directLink = `${window.location.origin}?code=${encodeURIComponent(cand.email)}`;
+        const directLink = `${window.location.origin}?code=${encodeURIComponent(cand.id)}`;
         sendAssessmentInviteEmail({
           candidateName: cand.name,
           candidateEmail: cand.email,
-          assessmentTitle: firstQuiz?.title || 'Technical Assessment Suite',
+          assessmentTitle: firstQuiz?.title || (language === 'es' ? 'Evaluación Técnica de Habilidades' : 'Technical Assessment Suite'),
           roleApplied: cand.roleApplied,
           accessLink: directLink,
+          assessmentCode: cand.id.toUpperCase(),
           timeLimit: configuredBanks[0]?.durationPreset || 20,
           questionsCount: totalQuestions,
           type: 'quiz',
@@ -676,7 +680,7 @@ export const AssignQuizModal: React.FC<Props> = ({
                         {t.recruiter.assignModal.modalityTyping}
                       </p>
                       <p className="text-[11px] text-slate-500 mt-0.5 truncate">
-                        {typingTemplates.length} {language === 'es' ? 'plantillas • 1 Min' : 'templates • 1 Min'}
+                        {typingTemplates.length} {language === 'es' ? 'plantillas configurables' : 'configurable templates'}
                       </p>
                     </div>
                   </button>
@@ -900,7 +904,7 @@ export const AssignQuizModal: React.FC<Props> = ({
                             {t.recruiter.assignModal.typingPreviewLabel}
                           </span>
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-[#2368f5] border border-blue-200">
-                            1 {language === 'es' ? 'Minuto' : 'Minute'}
+                            {Math.round((selectedTypingTemplate.targetDurationSeconds || 180) / 60)} {language === 'es' ? 'Minutos' : 'Minutes'}
                           </span>
                         </div>
                         <p className="text-xs text-slate-600 italic bg-slate-50 p-2.5 rounded-lg border border-slate-100 leading-relaxed font-mono">

@@ -10,6 +10,7 @@ interface SendEmailPayload {
   questionsCount?: number | string;
   type?: 'quiz' | 'typing' | 'excel' | 'custom';
   language?: 'es' | 'en';
+  assessmentCode?: string;
 }
 
 function getEnvVar(key: string): string {
@@ -28,9 +29,24 @@ function generateHtmlEmail(payload: SendEmailPayload): { subject: string; html: 
   const timeLimit = payload.timeLimit ? `${payload.timeLimit} min` : (isEn ? 'Untimed' : 'Sin límite');
   const count = payload.questionsCount ? String(payload.questionsCount) : null;
 
+  // Extract or resolve assessment code
+  let code = payload.assessmentCode;
+  if (!code && payload.accessLink) {
+    try {
+      const url = new URL(payload.accessLink);
+      code = url.searchParams.get('code') || url.searchParams.get('test') || undefined;
+    } catch {
+      const match = payload.accessLink.match(/[?&](?:code|test)=([^&]+)/);
+      if (match) code = decodeURIComponent(match[1]);
+    }
+  }
+  if (!code) {
+    code = payload.candidateEmail;
+  }
+
   let modalityLabel = isEn ? 'Question Bank Technical Assessment' : 'Cuestionario de Conocimientos Técnicos';
   if (payload.type === 'typing') {
-    modalityLabel = isEn ? 'Typing Speed Assessment (1 Minute Benchmark)' : 'Prueba de Mecanografía (Estándar 1 Minuto)';
+    modalityLabel = isEn ? 'Typing Speed Assessment' : 'Prueba de Mecanografía y Velocidad';
   } else if (payload.type === 'excel') {
     modalityLabel = isEn ? 'Practical Excel Skills Assessment' : 'Evaluación Práctica en Excel';
   }
@@ -143,6 +159,26 @@ function generateHtmlEmail(payload: SendEmailPayload): { subject: string; html: 
                         </td>
                       </tr>
                     </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Highlighted Assessment Access Code Box -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f0f7ff;border:2px dashed #93c5fd;border-radius:12px;margin-bottom:24px;text-align:center;">
+                <tr>
+                  <td style="padding:18px 20px;">
+                    <span style="font-size:11px;font-weight:700;color:#1e40af;text-transform:uppercase;letter-spacing:0.08em;display:block;margin-bottom:8px;">
+                      ${isEn ? 'Your Assessment Access Code' : 'Código de Acceso a tu Evaluación'}
+                    </span>
+                    <div style="font-family:'Courier New',Courier,monospace;font-size:20px;font-weight:800;color:#1d4ed8;letter-spacing:0.1em;background-color:#ffffff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 18px;display:inline-block;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                      ${code}
+                    </div>
+                    <p style="margin:0;font-size:12px;color:#3b82f6;line-height:1.4;">
+                      ${isEn
+                        ? 'Click the button below to start automatically, or enter this code on the verification screen.'
+                        : 'Haz clic en el botón inferior para ingresar directamente, o ingresa este código en la pantalla de acceso.'
+                      }
+                    </p>
                   </td>
                 </tr>
               </table>

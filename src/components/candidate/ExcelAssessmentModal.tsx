@@ -88,6 +88,7 @@ export const ExcelAssessmentModal: React.FC<Props> = ({
 
   // Download template workbook handler
   const handleDownloadTemplate = () => {
+    // 1. Data URL (Base64)
     if (assessment.templateFileData && assessment.templateFileData.startsWith('data:')) {
       const link = document.createElement('a');
       link.href = assessment.templateFileData;
@@ -95,19 +96,43 @@ export const ExcelAssessmentModal: React.FC<Props> = ({
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-    } else {
-      // Generate standard workbook data
-      const sampleCsv = `SkillProof Assessment: ${assessment.title}\nCandidate: ${candidateName} (${candidateEmail})\n\nCategory,Quarter,Budget,Actual,Variance Formula\nRevenue,Q1,50000,52000,=D4-C4\nOperations,Q1,20000,19500,=C5-D5\nMarketing,Q1,15000,16200,=C6-D6\nIT Infrastructure,Q1,8000,7800,=C7-D7\nTotal,=SUM(C4:C7),=SUM(D4:D7),=SUM(E4:E7)\n`;
-      const blob = new Blob([sampleCsv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
+      return;
+    }
+
+    // 2. Direct static file path (e.g. /templates/...)
+    if (assessment.templateFileData && (assessment.templateFileData.startsWith('/') || assessment.templateFileData.startsWith('http'))) {
       const link = document.createElement('a');
-      link.href = url;
-      link.download = assessment.templateFileName || 'assessment_template.csv';
+      link.href = assessment.templateFileData;
+      link.download = assessment.templateFileName || 'assessment_template.xlsx';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      return;
     }
+
+    // 3. Fallback: If template is a known file in /templates/
+    if (assessment.templateFileName) {
+      const link = document.createElement('a');
+      link.href = `/templates/${assessment.templateFileName}`;
+      link.download = assessment.templateFileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      return;
+    }
+
+    // 4. Fallback: Plain CSV text, ensure UTF-8 BOM and .csv extension so Excel opens cleanly without corruption errors
+    const rawData = assessment.templateFileData || `SkillProof Assessment: ${assessment.title}\nCandidate: ${candidateName} (${candidateEmail})\n\nCategory,Quarter,Budget,Actual,Variance Formula\nRevenue,Q1,50000,52000,=D4-C4\nOperations,Q1,20000,19500,=C5-D5\nMarketing,Q1,15000,16200,=C6-D6\nIT Infrastructure,Q1,8000,7800,=C7-D7\nTotal,=SUM(C4:C7),=SUM(D4:D7),=SUM(E4:E7)\n`;
+    const fileName = (assessment.templateFileName || 'assessment_template.csv').replace(/\.xlsx$/i, '.csv');
+    const blob = new Blob(['\uFEFF' + rawData], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {

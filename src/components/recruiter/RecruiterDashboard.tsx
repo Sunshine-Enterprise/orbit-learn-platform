@@ -54,6 +54,7 @@ export const RecruiterDashboard: React.FC = () => {
     quizzes,
     assignments,
     typingAssignments,
+    typingTemplates,
     excelAssessments,
     excelSubmissions,
     deleteQuiz,
@@ -128,6 +129,7 @@ export const RecruiterDashboard: React.FC = () => {
     assessmentTitle: string;
     roleApplied?: string;
     link: string;
+    assessmentCode?: string;
     timeLimit?: number;
     questionsCount?: number;
     type?: 'quiz' | 'typing' | 'excel';
@@ -141,6 +143,7 @@ export const RecruiterDashboard: React.FC = () => {
         assessmentTitle: params.assessmentTitle,
         roleApplied: params.roleApplied,
         accessLink: params.link,
+        assessmentCode: params.assessmentCode,
         timeLimit: params.timeLimit,
         questionsCount: params.questionsCount,
         type: params.type || 'quiz',
@@ -857,6 +860,7 @@ export const RecruiterDashboard: React.FC = () => {
                                     assessmentTitle: item.quizTitle,
                                     roleApplied: item.roleApplied,
                                     link,
+                                    assessmentCode: item.id,
                                     timeLimit: item.durationMinutes || 20,
                                     questionsCount: item.totalQuestions,
                                     type: 'quiz',
@@ -1826,7 +1830,8 @@ export const RecruiterDashboard: React.FC = () => {
                                     candidateEmail: test.candidateEmail,
                                     assessmentTitle: test.templateTitle,
                                     link,
-                                    timeLimit: 1,
+                                    assessmentCode: test.id,
+                                    timeLimit: Math.round((typingTemplates.find(t => t.id === test.templateId)?.targetDurationSeconds || 180) / 60),
                                     type: 'typing',
                                     uniqueKey: `typing-${test.id}`,
                                   });
@@ -2185,6 +2190,35 @@ export const RecruiterDashboard: React.FC = () => {
                             >
                               <Copy className="w-3 h-3" />
                               <span>{t.recruiter.pipeline.copyLinkBtn}</span>
+                            </button>
+                            <button
+                              onClick={() => {
+                                const link = `${window.location.origin}?code=${sub.id}`;
+                                handleSendInviteEmail({
+                                  candidateName: sub.candidateName,
+                                  candidateEmail: sub.candidateEmail,
+                                  assessmentTitle: sub.assessmentTitle || assessObj?.title || 'Excel Assessment',
+                                  link,
+                                  assessmentCode: sub.id,
+                                  timeLimit: assessObj?.timeLimitMinutes || 30,
+                                  type: 'excel',
+                                  uniqueKey: `excel-${sub.id}`,
+                                });
+                              }}
+                              disabled={sendingEmailKey === `excel-${sub.id}`}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-blue-50 text-[#2368f5] font-bold hover:bg-blue-100 transition-colors cursor-pointer text-xs border border-blue-200 disabled:opacity-50"
+                              title={t.recruiter.pipeline.sendEmailBtn}
+                            >
+                              {sendingEmailKey === `excel-${sub.id}` ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <Mail className="w-3 h-3" />
+                              )}
+                              <span>
+                                {sendingEmailKey === `excel-${sub.id}`
+                                  ? t.recruiter.pipeline.emailSending
+                                  : t.recruiter.pipeline.sendEmailBtn}
+                              </span>
                             </button>
                           </div>
                         </td>

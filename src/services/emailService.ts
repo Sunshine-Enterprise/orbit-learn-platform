@@ -8,6 +8,7 @@ export interface SendAssessmentEmailParams {
   questionsCount?: number | string;
   type?: 'quiz' | 'typing' | 'excel' | 'custom';
   language?: 'es' | 'en';
+  assessmentCode?: string;
 }
 
 export interface SendEmailResponse {
