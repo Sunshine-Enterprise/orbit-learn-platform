@@ -604,35 +604,6 @@ export const CandidateExamAccess: React.FC<Props> = ({ onSwitchToAdmin }) => {
             </form>
           )}
 
-          {/* Quick autofill candidate credentials reference card */}
-          <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs space-y-2">
-            <span className="font-bold text-slate-700 flex items-center gap-1.5 text-[11px] uppercase tracking-wider">
-              <KeyRound className="w-3.5 h-3.5 text-[#2368f5]" />
-              {isEs ? 'Candidatos con Contraseña Temporal Activa' : 'Candidates with Active Temporary Password'}
-            </span>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
-              {candidates.slice(0, 4).map(cand => (
-                <button
-                  key={cand.id}
-                  type="button"
-                  onClick={() => {
-                    setCandidateEmail(cand.email);
-                    setCandidatePassword(cand.temporaryPassword || 'SEU-temp-101');
-                    setCurrentTempPass(cand.temporaryPassword || 'SEU-temp-101');
-                    setErrorMessage(null);
-                  }}
-                  className="p-2 bg-white rounded-lg border border-slate-200 text-left hover:border-blue-400 hover:bg-blue-50/40 transition-colors cursor-pointer"
-                >
-                  <p className="font-bold text-slate-800 truncate">{cand.name}</p>
-                  <p className="text-slate-500 text-[10px] truncate">{cand.email}</p>
-                  <p className="font-mono text-[#2368f5] font-bold text-[10px] mt-0.5">
-                    {cand.isPasswordChanged ? (isEs ? 'Clave propia establecida' : 'Custom pass active') : (cand.temporaryPassword || 'SEU-temp-101')}
-                  </p>
-                </button>
-              ))}
-            </div>
-          </div>
-
           {onSwitchToAdmin && (
             <div className="pt-2 border-t border-slate-100 text-center">
               <button

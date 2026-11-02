@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   Clock,
   Eye,
+  EyeOff,
   SendHorizontal,
   Mars,
   Venus,
@@ -36,6 +37,7 @@ export const CandidateProfileModal: React.FC<Props> = ({
   const { assignments, language, t, resetCandidatePassword } = useApp();
   const [currentTempPass, setCurrentTempPass] = React.useState<string>(candidate?.temporaryPassword || 'SEU-temp-101');
   const [isResetting, setIsResetting] = React.useState(false);
+  const [showPass, setShowPass] = React.useState(false);
 
   if (!candidate) return null;
 
@@ -176,8 +178,16 @@ export const CandidateProfileModal: React.FC<Props> = ({
             </span>
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-slate-500 font-medium">{isEs ? 'Contraseña actual:' : 'Current password:'}</span>
-              <span className="font-mono font-bold text-blue-700 bg-white px-2 py-0.5 rounded border border-blue-200">
-                {currentTempPass}
+              <span className="font-mono font-bold text-blue-700 bg-white px-2 py-0.5 rounded border border-blue-200 inline-flex items-center gap-1.5">
+                <span>{showPass ? currentTempPass : '••••••••'}</span>
+                <button
+                  type="button"
+                  onClick={() => setShowPass(prev => !prev)}
+                  className="text-slate-400 hover:text-slate-600 cursor-pointer p-0.5"
+                  title={showPass ? (isEs ? 'Ocultar' : 'Hide') : (isEs ? 'Mostrar' : 'Show')}
+                >
+                  {showPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                </button>
               </span>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 font-semibold">
                 {candidate.isPasswordChanged

@@ -12,7 +12,6 @@ import {
   GraduationCap,
   Eye,
   EyeOff,
-  KeyRound,
 } from 'lucide-react';
 
 interface Props {
@@ -72,12 +71,6 @@ export const AdminAuthView: React.FC<Props> = ({ onSuccess, onSwitchToCandidate 
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleFillAuthorizedAdmin = () => {
-    setEmail('admin@seu-usa.com');
-    setPassword('SeuAdmin2026!');
-    setErrorMessage(null);
   };
 
   return (
@@ -218,29 +211,8 @@ export const AdminAuthView: React.FC<Props> = ({ onSuccess, onSwitchToCandidate 
           </button>
         </form>
 
-        {/* Live Admin Credentials Reference Card */}
-        <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="font-bold text-slate-700 flex items-center gap-1.5 text-[11px] uppercase tracking-wider">
-              <KeyRound className="w-3.5 h-3.5 text-[#2368f5]" />
-              {isEs ? 'Credenciales Oficiales en Vivo' : 'Live Official Credentials'}
-            </span>
-            <button
-              type="button"
-              onClick={handleFillAuthorizedAdmin}
-              className="text-[11px] font-bold text-[#2368f5] hover:underline cursor-pointer"
-            >
-              {isEs ? 'Pre-llenar datos' : 'Autofill admin'}
-            </button>
-          </div>
-          <div className="font-mono text-[11px] text-slate-600 bg-white p-2 rounded-lg border border-slate-200 space-y-0.5">
-            <p><span className="text-slate-400 select-none">Usuario: </span>admin@seu-usa.com</p>
-            <p><span className="text-slate-400 select-none">Contraseña: </span>SeuAdmin2026!</p>
-          </div>
-        </div>
-
         {/* Link to Candidate Portal */}
-        <div className="text-center pt-1">
+        <div className="text-center pt-2">
           <button
             type="button"
             onClick={onSwitchToCandidate}

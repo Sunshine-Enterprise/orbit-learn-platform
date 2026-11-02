@@ -11,6 +11,8 @@ import {
   Keyboard,
   FileSpreadsheet,
   Check,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { getLocalizedArea } from '../../utils/areaLocalization';
 import { resolveCandidateGender } from '../../utils/genderHelper';
@@ -43,6 +45,7 @@ export const CandidateModal: React.FC<Props> = ({ isOpen, onClose, candidateToEd
   const [customRoleText, setCustomRoleText] = useState('');
   const [gender, setGender] = useState<'male' | 'female'>('male');
   const [temporaryPassword, setTemporaryPassword] = useState('');
+  const [showTempPass, setShowTempPass] = useState(false);
 
   // Typing and Excel toggles
   const [typingEnabled, setTypingEnabled] = useState(false);
@@ -238,13 +241,23 @@ export const CandidateModal: React.FC<Props> = ({ isOpen, onClose, candidateToEd
             <label className="block text-xs font-semibold text-slate-800 mb-1">
               {language === 'es' ? 'Contraseña Temporal de Acceso' : 'Initial Temporary Password'}
             </label>
-            <input
-              type="text"
-              value={temporaryPassword}
-              onChange={e => setTemporaryPassword(e.target.value)}
-              className="w-full text-xs font-mono p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-1 focus:ring-[#2368f5]"
-              placeholder="ej. SEU-temp-101"
-            />
+            <div className="relative">
+              <input
+                type={showTempPass ? 'text' : 'password'}
+                value={temporaryPassword}
+                onChange={e => setTemporaryPassword(e.target.value)}
+                className="w-full text-xs font-mono p-2.5 pr-9 rounded-xl border border-slate-300 focus:outline-none focus:ring-1 focus:ring-[#2368f5]"
+                placeholder="ej. SEU-temp-101"
+              />
+              <button
+                type="button"
+                onClick={() => setShowTempPass(prev => !prev)}
+                className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+                title={showTempPass ? (language === 'es' ? 'Ocultar' : 'Hide') : (language === 'es' ? 'Mostrar' : 'Show')}
+              >
+                {showTempPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
             <p className="text-[11px] text-slate-400 mt-1">
               {language === 'es'
                 ? 'El postulante recibirá esta clave por correo y podrá conservarla o cambiarla al acceder.'
