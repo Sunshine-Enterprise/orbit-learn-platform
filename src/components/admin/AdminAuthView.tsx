@@ -5,10 +5,8 @@ import {
   ShieldCheck,
   Lock,
   Mail,
-  User,
   ArrowRight,
   AlertCircle,
-  CheckCircle2,
   GraduationCap,
   Eye,
   EyeOff,
@@ -23,48 +21,29 @@ export const AdminAuthView: React.FC<Props> = ({ onSuccess, onSwitchToCandidate 
   const { t, language } = useApp();
   const isEs = language === 'es';
 
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [infoMessage, setInfoMessage] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
-    setInfoMessage(null);
     setLoading(true);
 
     try {
-      if (mode === 'signin') {
-        const { user, error } = await authService.signIn(email, password);
-        if (error) {
-          setErrorMessage(
-            error === 'Invalid login credentials'
-              ? t.adminAuth.errorInvalidCreds
-              : error
-          );
-          return;
-        }
-        if (user) {
-          onSuccess();
-        }
-      } else {
-        const { user, error, requiresEmailConfirmation } = await authService.signUp(email, password, fullName);
-        if (error) {
-          setErrorMessage(error);
-          return;
-        }
-        if (requiresEmailConfirmation) {
-          setInfoMessage(t.adminAuth.successSignUpConfirmation);
-          return;
-        }
-        if (user) {
-          onSuccess();
-        }
+      const { user, error } = await authService.signIn(email, password);
+      if (error) {
+        setErrorMessage(
+          error === 'Invalid login credentials'
+            ? t.adminAuth.errorInvalidCreds
+            : error
+        );
+        return;
+      }
+      if (user) {
+        onSuccess();
       }
     } catch (err: any) {
       setErrorMessage(err.message || t.adminAuth.errorUnexpected);
@@ -90,54 +69,22 @@ export const AdminAuthView: React.FC<Props> = ({ onSuccess, onSwitchToCandidate 
       </div>
 
       <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xl space-y-6">
-        {/* Tab Switcher */}
-        <div className="flex bg-slate-100 p-1 rounded-2xl">
-          <button
-            type="button"
-            onClick={() => {
-              setMode('signin');
-              setErrorMessage(null);
-            }}
-            className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
-              mode === 'signin' ? 'bg-white text-[#10243e] shadow-xs' : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            {t.adminAuth.tabSignIn}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setMode('signup');
-              setErrorMessage(null);
-            }}
-            className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
-              mode === 'signup' ? 'bg-white text-[#10243e] shadow-xs' : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            {t.adminAuth.tabSignUp}
-          </button>
+        {/* Corporate Security Header */}
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-blue-50 text-[#2368f5] flex items-center justify-center">
+              <Lock className="w-4 h-4" />
+            </div>
+            <span className="text-xs font-bold text-[#10243e] tracking-tight">
+              {t.adminAuth.tabSignIn}
+            </span>
+          </div>
+          <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200">
+            {isEs ? 'Acceso Exclusivo' : 'Authorized Access'}
+          </span>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {mode === 'signup' && (
-            <div>
-              <label className="block text-xs font-semibold text-slate-800 mb-1">
-                {t.adminAuth.nameLabel}
-              </label>
-              <div className="relative">
-                <User className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                <input
-                  type="text"
-                  required
-                  placeholder={t.adminAuth.namePlaceholder}
-                  value={fullName}
-                  onChange={e => setFullName(e.target.value)}
-                  className="w-full text-xs pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#2368f5]/20 focus:border-[#2368f5]"
-                />
-              </div>
-            </div>
-          )}
-
           <div>
             <label className="block text-xs font-semibold text-slate-800 mb-1">
               {t.adminAuth.emailLabel}
@@ -188,24 +135,13 @@ export const AdminAuthView: React.FC<Props> = ({ onSuccess, onSwitchToCandidate 
             </div>
           )}
 
-          {infoMessage && (
-            <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 shrink-0" />
-              <span>{infoMessage}</span>
-            </div>
-          )}
-
           <button
             type="submit"
             disabled={loading}
             className="w-full py-3 bg-[#2368f5] hover:bg-[#144cc0] disabled:opacity-60 text-white text-xs font-bold rounded-xl transition-colors shadow-xs flex items-center justify-center gap-2 cursor-pointer"
           >
             <span>
-              {loading
-                ? t.adminAuth.connectingBtn
-                : mode === 'signin'
-                ? t.adminAuth.signInBtn
-                : t.adminAuth.signUpBtn}
+              {loading ? t.adminAuth.connectingBtn : t.adminAuth.signInBtn}
             </span>
             <ArrowRight className="w-4 h-4" />
           </button>
