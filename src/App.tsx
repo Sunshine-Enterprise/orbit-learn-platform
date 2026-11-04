@@ -15,7 +15,12 @@ const AppContent: React.FC = () => {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('code') || params.get('test') || params.get('email')) {
+    if (params.get('admin') !== null || params.get('portal') === 'admin' || params.get('role') === 'admin') {
+      setActiveRole('recruiter');
+      return;
+    }
+
+    if (params.get('code') || params.get('test') || params.get('email') || params.get('portal') === 'candidate' || params.get('role') === 'candidate') {
       setActiveRole('candidate');
       return;
     }
@@ -34,10 +39,13 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#f5f8fc] text-[#10243e]">
-      <Navbar onAdminLogout={isAdminAuthenticated && activeRole === 'recruiter' ? handleAdminLogout : undefined} />
+      <Navbar
+        isAdminAuthenticated={isAdminAuthenticated}
+        onAdminLogout={isAdminAuthenticated && activeRole === 'recruiter' ? handleAdminLogout : undefined}
+      />
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {activeRole === 'candidate' ? (
-          <CandidateExamAccess onSwitchToAdmin={() => setActiveRole('recruiter')} />
+          <CandidateExamAccess />
         ) : isAdminAuthenticated ? (
           <RecruiterDashboard />
         ) : (
@@ -47,7 +55,7 @@ const AppContent: React.FC = () => {
           />
         )}
       </main>
-      <Footer />
+      <Footer isAdminAuthenticated={isAdminAuthenticated} />
     </div>
   );
 };

@@ -11,7 +11,6 @@ import {
   Clock,
   ArrowRight,
   AlertCircle,
-  Briefcase,
   Lock,
   Award,
   LogOut,
@@ -36,7 +35,7 @@ interface CandidateSession {
   candidateEmail: string;
 }
 
-export const CandidateExamAccess: React.FC<Props> = ({ onSwitchToAdmin }) => {
+export const CandidateExamAccess: React.FC<Props> = () => {
   const {
     assignments,
     quizzes,
@@ -45,7 +44,6 @@ export const CandidateExamAccess: React.FC<Props> = ({ onSwitchToAdmin }) => {
     typingTemplates,
     excelAssessments,
     excelSubmissions,
-    setActiveRole,
     verifyCandidateAuth,
     updateCandidatePassword,
     t,
@@ -610,22 +608,6 @@ export const CandidateExamAccess: React.FC<Props> = ({ onSwitchToAdmin }) => {
                 <ArrowRight className="w-4 h-4" />
               </button>
             </form>
-          )}
-
-          {onSwitchToAdmin && (
-            <div className="pt-2 border-t border-slate-100 text-center">
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveRole('recruiter');
-                  onSwitchToAdmin();
-                }}
-                className="text-xs text-[#2368f5] hover:underline font-semibold inline-flex items-center gap-1.5 cursor-pointer"
-              >
-                <Briefcase className="w-3.5 h-3.5" />
-                <span>{isEs ? 'Acceso Administrativo / Reclutador' : 'Administrative / Recruiter Portal Access'}</span>
-              </button>
-            </div>
           )}
         </div>
       )}

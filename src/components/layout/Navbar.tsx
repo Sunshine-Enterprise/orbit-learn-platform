@@ -10,10 +10,11 @@ import {
 } from 'lucide-react';
 
 interface NavbarProps {
+  isAdminAuthenticated?: boolean;
   onAdminLogout?: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ onAdminLogout }) => {
+export const Navbar: React.FC<NavbarProps> = ({ isAdminAuthenticated = false, onAdminLogout }) => {
   const {
     language,
     setLanguage,
@@ -61,32 +62,34 @@ export const Navbar: React.FC<NavbarProps> = ({ onAdminLogout }) => {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Quick Role Switcher Buttons */}
-            <div className="flex items-center gap-1 bg-white/10 p-0.5 rounded-full border border-white/20">
-              <button
-                onClick={() => setActiveRole('recruiter')}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-                  activeRole === 'recruiter'
-                    ? 'bg-[#2368f5] text-white shadow-xs'
-                    : 'text-slate-300 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                <Briefcase className="w-3.5 h-3.5" />
-                <span>{t.roles.recruiter}</span>
-              </button>
+            {/* Quick Role Switcher Buttons - Only visible to authenticated administrators */}
+            {isAdminAuthenticated && (
+              <div className="flex items-center gap-1 bg-white/10 p-0.5 rounded-full border border-white/20">
+                <button
+                  onClick={() => setActiveRole('recruiter')}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                    activeRole === 'recruiter'
+                      ? 'bg-[#2368f5] text-white shadow-xs'
+                      : 'text-slate-300 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  <Briefcase className="w-3.5 h-3.5" />
+                  <span>{t.roles.recruiter}</span>
+                </button>
 
-              <button
-                onClick={() => setActiveRole('candidate')}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-                  activeRole === 'candidate'
-                    ? 'bg-[#2368f5] text-white shadow-xs'
-                    : 'text-slate-300 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                <GraduationCap className="w-3.5 h-3.5" />
-                <span>{t.roles.candidate}</span>
-              </button>
-            </div>
+                <button
+                  onClick={() => setActiveRole('candidate')}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                    activeRole === 'candidate'
+                      ? 'bg-[#2368f5] text-white shadow-xs'
+                      : 'text-slate-300 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  <GraduationCap className="w-3.5 h-3.5" />
+                  <span>{t.roles.candidate}</span>
+                </button>
+              </div>
+            )}
 
             {/* Language Selector: EN | ES */}
             <div className="flex items-center gap-1 bg-white/10 rounded-full p-0.5 border border-white/20 pl-1.5">
@@ -164,6 +167,15 @@ export const Navbar: React.FC<NavbarProps> = ({ onAdminLogout }) => {
                 <span className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-blue-50 text-[#2368f5] border border-blue-200 shadow-2xs">
                   {t.candidate.portalBadge}
                 </span>
+                {isAdminAuthenticated && (
+                  <button
+                    onClick={() => setActiveRole('recruiter')}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-[#2368f5] hover:text-[#144cc0] bg-blue-50/70 hover:bg-blue-100/70 border border-blue-200 px-2.5 py-1.5 rounded-xl transition-colors cursor-pointer"
+                  >
+                    <Briefcase className="w-3.5 h-3.5" />
+                    <span>{language === 'es' ? 'Volver a Admin' : 'Back to Admin'}</span>
+                  </button>
+                )}
               </div>
             )}
           </div>

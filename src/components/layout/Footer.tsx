@@ -3,8 +3,12 @@ import { useApp } from '../../context/AppContext';
 import { ShieldCheck } from 'lucide-react';
 
 
-export const Footer: React.FC = () => {
-  const { t, setActiveRole } = useApp();
+interface FooterProps {
+  isAdminAuthenticated?: boolean;
+}
+
+export const Footer: React.FC<FooterProps> = ({ isAdminAuthenticated = false }) => {
+  const { t, activeRole, setActiveRole } = useApp();
 
   return (
     <footer className="mt-16 pt-8 border-t border-slate-200 text-xs text-slate-500">
@@ -16,18 +20,22 @@ export const Footer: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-4">
-            <button
-              onClick={() => setActiveRole('recruiter')}
-              className="hover:text-slate-900 cursor-pointer"
-            >
-              {t.nav.overview}
-            </button>
-            <button
-              onClick={() => setActiveRole('candidate')}
-              className="hover:text-slate-900 cursor-pointer"
-            >
-              {t.nav.candidatePortal}
-            </button>
+            {isAdminAuthenticated && activeRole === 'recruiter' && (
+              <>
+                <button
+                  onClick={() => setActiveRole('recruiter')}
+                  className="hover:text-slate-900 cursor-pointer"
+                >
+                  {t.nav.overview}
+                </button>
+                <button
+                  onClick={() => setActiveRole('candidate')}
+                  className="hover:text-slate-900 cursor-pointer"
+                >
+                  {t.nav.candidatePortal}
+                </button>
+              </>
+            )}
             <span className="flex items-center gap-1 text-[#60738a]">
               <ShieldCheck className="w-3.5 h-3.5 text-[#2368f5]" />
               <span>Standardized Scoring Engine</span>
